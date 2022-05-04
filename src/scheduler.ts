@@ -52,6 +52,12 @@ export class Scheduler {
         return { unsubscribe };
     }
 
+    public reset(currentTime: number): void {
+        this._nextTick = currentTime;
+
+        this._subject.next({ end: this._nextTick + INTERVAL, start: this._nextTick });
+    }
+
     private _start(currentTime: number): void {
         this._nextTick = currentTime + INTERVAL;
 
