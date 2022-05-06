@@ -56,6 +56,10 @@ export class MidiPlayer implements IMidiPlayer {
 
         this._endedTracks = 0;
 
+        if (this._offset !== null) {
+            this._offset = this._scheduler.now() - this._offset!;
+        }
+
         return this._promise();
     }
 
@@ -101,14 +105,14 @@ export class MidiPlayer implements IMidiPlayer {
     public seek(position: number) {
         this._clear();
 
-        if (this.state === PlayerState.Paused) {
+        if (this.state !== PlayerState.Playing) {
             this._offset = position;
         }
         else {
-            this._offset = this._scheduler.now() - position;
+            const now = this._scheduler.now();
+            this._offset = now - position;
+            this._scheduler.reset(now);
         }
-
-        this._scheduler.reset(this._scheduler.now());
     }
 
     private _pause(): void {
