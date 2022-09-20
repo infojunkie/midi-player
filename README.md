@@ -2,8 +2,6 @@
 
 **A MIDI player which sends MIDI messages to connected devices.**
 
-[![version](https://img.shields.io/npm/v/midi-player.svg?style=flat-square)](https://www.npmjs.com/package/midi-player)
-
 This module provides a player which sends MIDI messages to connected devices. It schedules the messages with a look ahead of about 500 milliseconds. It does not directly rely on the [Web MIDI API](https://webaudio.github.io/web-midi-api/) but expects a [MIDIOutput](https://webaudio.github.io/web-midi-api/#midioutput-interface) to be passed as constructor argument. But theoretically that could be anything which implements the same interface.
 
 ## Features of this fork
@@ -14,6 +12,8 @@ Here are the features added in this fork:
 - Attributes `IMidiPlayer.state` and `IMidiPlayer.position`
 - Methods `IMidiPlayer.pause()`, `IMidiPlayer.resume()`, `IMidiPlayer.stop()`, `IMidiPlayer.seek(position)`
 - Sending [MIDI Control Change (CC) message "All Sound Off"](https://anotherproducer.com/online-tools-for-musicians/midi-cc-list/) on player pause/stop
+
+To use this fork instead of the original version, use `npm install git://github.com/infojunkie/midi-player.git#infojunkie`.
 
 ## Usage
 
