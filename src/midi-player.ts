@@ -1,8 +1,8 @@
 import { MidiFileSlicer } from 'midi-file-slicer';
-import { IMidiFile, IMidiStatusEvent, TMidiEvent } from 'midi-json-parser-worker';
+import { IMidiFile, TMidiEvent } from 'midi-json-parser-worker';
 import { IMidiOutput, IMidiPlayer, IMidiPlayerOptions } from './interfaces';
-import { PlayerState } from './types/player-state';
 import { Scheduler } from './scheduler';
+import { PlayerState } from './types/player-state';
 
 export class MidiPlayer implements IMidiPlayer {
     private _encodeMidiMessage: (event: TMidiEvent) => Uint8Array;
@@ -11,21 +11,19 @@ export class MidiPlayer implements IMidiPlayer {
 
     private _json: IMidiFile;
 
+    private _latest: null | number;
+
     private _midiFileSlicer: MidiFileSlicer;
 
     private _midiOutput: IMidiOutput;
 
     private _offset: null | number;
 
-    private _latest: null | number;
-
     private _resolve: null | (() => void);
 
     private _scheduler: Scheduler;
 
     private _schedulerSubscription: null | { unsubscribe(): void };
-
-    private _channels: Set<number>;
 
     constructor({ encodeMidiMessage, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions) {
         this._encodeMidiMessage = encodeMidiMessage;
@@ -38,15 +36,30 @@ export class MidiPlayer implements IMidiPlayer {
         this._resolve = null;
         this._scheduler = scheduler;
         this._schedulerSubscription = null;
+    }
 
-        // List all channels that are contained in the MIDI file.
-        // We will use it to send All Sound Off messages on pause / stop.
-        this._channels = this._json.tracks.reduce((channels, track) => {
-            track.filter(event => 'channel' in event).forEach(event => {
-                channels.add((event as IMidiStatusEvent).channel);
-            });
-            return channels;
-        }, new Set<number>());
+    public get position(): number | null {
+        return this._offset === null ? null : this._scheduler.now() - this._offset;
+    }
+
+    public get state(): PlayerState {
+        if (this._schedulerSubscription === null && this._resolve === null) {
+            return this._endedTracks === null ? PlayerState.Stopped : PlayerState.Paused;
+        }
+
+        return PlayerState.Playing;
+    }
+
+    public pause(): void {
+        if (this.state !== PlayerState.Playing) {
+            throw new Error('The player is not currently playing.');
+        }
+
+        this._pause();
+
+        if (this._offset !== null) {
+            this._offset = this._scheduler.now() - this._offset;
+        }
     }
 
     public play(): Promise<void> {
@@ -57,20 +70,10 @@ export class MidiPlayer implements IMidiPlayer {
         this._endedTracks = 0;
 
         if (this._offset !== null) {
-            this._offset = this._scheduler.now() - this._offset!;
+            this._offset = this._scheduler.now() - this._offset;
         }
 
         return this._promise();
-    }
-
-    public pause(): void {
-        if (this.state !== PlayerState.Playing) {
-            throw new Error('The player is not currently playing.');
-        }
-
-        this._pause();
-
-        this._offset = this._scheduler.now() - this._offset!;
     }
 
     public resume(): Promise<void> {
@@ -78,31 +81,14 @@ export class MidiPlayer implements IMidiPlayer {
             throw new Error('The player is not currently paused.');
         }
 
-        this._offset = this._scheduler.now() - this._offset!;
+        if (this._offset !== null) {
+            this._offset = this._scheduler.now() - this._offset;
+        }
 
         return this._promise();
     }
 
-    public stop(): void {
-        this._pause();
-
-        this._offset = null;
-
-        this._endedTracks = null;
-    }
-
-    public get state(): PlayerState {
-        if (this._schedulerSubscription === null && this._resolve === null) {
-            return this._endedTracks === null ? PlayerState.Stopped : PlayerState.Paused;
-        }
-        return PlayerState.Playing;
-    }
-
-    public get position(): number {
-        return this._scheduler.now() - this._offset!;
-    }
-
-    public seek(position: number) {
+    public seek(position: number): void {
         this._clear();
 
         if (this.state !== PlayerState.Playing) {
@@ -113,6 +99,33 @@ export class MidiPlayer implements IMidiPlayer {
             this._offset = now - position;
             this._scheduler.reset(now);
         }
+    }
+
+    public stop(): void {
+        this._pause();
+
+        this._offset = null;
+
+        this._endedTracks = null;
+    }
+
+    private _clear(): void {
+        this._midiOutput.clear?.();
+
+        // Send AllSoundOff message to all channels.
+        [...Array(16).keys()].map(n => n+1).forEach(channel => {
+            const allSoundOff = this._encodeMidiMessage({
+                channel,
+                controlChange: {
+                  type: 120,
+                  value: 127
+                }
+            } as TMidiEvent);
+
+            if (this._latest !== null) {
+                this._midiOutput.send(allSoundOff, this._latest);
+            }
+        })
     }
 
     private _pause(): void {
@@ -127,21 +140,6 @@ export class MidiPlayer implements IMidiPlayer {
         }
 
         this._clear();
-    }
-
-    private _clear(): void {
-        this._midiOutput.clear?.();
-
-        this._channels?.forEach(channel => {
-            const allSoundOff = this._encodeMidiMessage({
-                channel,
-                controlChange: {
-                  type: 120,
-                  value: 127
-                }
-            } as TMidiEvent);
-            this._midiOutput.send(allSoundOff, this._latest! + 1);
-        })
     }
 
     private _promise(): Promise<void> {
@@ -178,6 +176,7 @@ export class MidiPlayer implements IMidiPlayer {
             .filter(({ event }) => MidiPlayer._isSendableEvent(event))
             .forEach(({ event, time }) => {
                 this._midiOutput.send(this._encodeMidiMessage(event), start + time);
+                /* tslint:disable-next-line no-non-null-assertion */
                 this._latest = Math.max(this._latest!, start + time);
             });
 
@@ -185,7 +184,8 @@ export class MidiPlayer implements IMidiPlayer {
 
         this._endedTracks += endedTracks;
 
-        if (this._endedTracks === this._json.tracks.length && this._scheduler.now() > this._latest!) {
+        /* tslint:disable-next-line no-non-null-assertion */
+        if (this._endedTracks === this._json.tracks.length && this._scheduler.now() >= this._latest!) {
             if (this._schedulerSubscription !== null) {
                 this._schedulerSubscription.unsubscribe();
             }

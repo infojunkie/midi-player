@@ -64,6 +64,8 @@ describe('MidiPlayer', () => {
         });
 
         it('should return a promise', () => {
+            midiFileSlicerMock.slice.returns([{ event: { delta: 0, endOfTrack: true }, time: 0 }]);
+
             expect(midiPlayer.play()).to.be.a('promise');
         });
 

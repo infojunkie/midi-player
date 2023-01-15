@@ -27,6 +27,12 @@ export class Scheduler {
         return this._performance.now();
     }
 
+    public reset(currentTime: number): void {
+        this._nextTick = currentTime;
+
+        this._subject.next({ end: this._nextTick + INTERVAL, start: this._nextTick });
+    }
+
     public subscribe(observer: Partial<Observer<IInterval>>): { unsubscribe(): void } {
         this._numberOfSubscribers += 1;
 
@@ -50,12 +56,6 @@ export class Scheduler {
         };
 
         return { unsubscribe };
-    }
-
-    public reset(currentTime: number): void {
-        this._nextTick = currentTime;
-
-        this._subject.next({ end: this._nextTick + INTERVAL, start: this._nextTick });
     }
 
     private _start(currentTime: number): void {

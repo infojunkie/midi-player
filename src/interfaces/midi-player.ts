@@ -1,9 +1,9 @@
 import { PlayerState } from '../types/player-state';
 
 export interface IMidiPlayer {
-    readonly state: PlayerState;
+    readonly position: number | null;
 
-    readonly position: number;
+    readonly state: PlayerState;
 
     pause(): void;
 
@@ -11,7 +11,7 @@ export interface IMidiPlayer {
 
     resume(): Promise<void>;
 
-    stop(): void;
-
     seek(position: number): void;
+
+    stop(): void;
 }
