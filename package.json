@@ -1,5 +1,8 @@
 {
-    "author": "Karim Ratib",
+    "author": "Christoph Guttandin",
+    "contributors": [
+        "Karim Ratib <karim.ratib@gmail.com> (https://karimratib.me)"
+    ],
     "bugs": {
         "url": "https://github.com/infojunkie/midi-player/issues"
     },
