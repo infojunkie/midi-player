@@ -13,14 +13,10 @@ Here are the features added in this fork:
 - Methods `IMidiPlayer.pause()`, `IMidiPlayer.resume()`, `IMidiPlayer.stop()`, `IMidiPlayer.seek(position)`
 - Sending [MIDI Control Change (CC) message "All Sound Off"](https://anotherproducer.com/online-tools-for-musicians/midi-cc-list/) on player pause/stop
 
-To use this fork instead of the original version, use `npm install git://github.com/infojunkie/midi-player.git#infojunkie`.
-
 ## Usage
 
-`midi-player` is published on [npm](https://www.npmjs.com/package/midi-player) and can be installed as usual.
-
 ```shell
-npm install midi-player
+npm install git://github.com/infojunkie/midi-player.git#infojunkie
 ```
 
 The only exported function is a factory method to create new player instances.
