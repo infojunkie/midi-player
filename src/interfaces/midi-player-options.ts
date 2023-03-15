@@ -1,5 +1,5 @@
-import { MidiFileSlicer } from 'midi-file-slicer';
 import { TMidiEvent } from 'midi-json-parser-worker';
+import { MidiFileSlicer } from '../midi-file-slicer';
 import { Scheduler } from '../scheduler';
 import { IMidiPlayerFactoryOptions } from './midi-player-factory-options';
 
