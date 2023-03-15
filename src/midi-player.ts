@@ -1,6 +1,6 @@
+import { MidiFileSlicer } from 'midi-file-slicer';
 import { IMidiFile, TMidiEvent } from 'midi-json-parser-worker';
 import { IMidiOutput, IMidiPlayer, IMidiPlayerOptions } from './interfaces';
-import { MidiFileSlicer } from './midi-file-slicer';
 import { Scheduler } from './scheduler';
 import { PlayerState } from './types/player-state';
 
