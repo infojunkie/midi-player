@@ -1,0 +1,1 @@
+{"version":3,"file":"encode-midi-message.js","sourceRoot":"","sources":["../../../src/helpers/encode-midi-message.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,MAAM,EAAE,MAAM,2BAA2B,CAAC;AAGnD,MAAM,CAAC,MAAM,iBAAiB,GAAG,CAAC,KAAiB,EAAc,EAAE;IAC/D,OAAO,IAAI,UAAU,CAAC,MAAM,CAAC,KAAK,CAAC,CAAC,CAAC;AACzC,CAAC,CAAC"}

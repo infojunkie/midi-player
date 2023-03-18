@@ -1,0 +1,1 @@
+{"version":3,"file":"midi-output.d.ts","sourceRoot":"","sources":["../../../src/interfaces/midi-output.ts"],"names":[],"mappings":"AAEA,MAAM,WAAW,WAAW;IACxB,KAAK,CAAC,IAAI,IAAI,CAAC;IAEf,IAAI,CAAC,IAAI,EAAE,MAAM,EAAE,GAAG,UAAU,EAAE,SAAS,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;CAC/D"}
