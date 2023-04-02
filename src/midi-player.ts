@@ -167,7 +167,7 @@ export class MidiPlayer implements IMidiPlayer {
 
     private _schedule(start: number, end: number): void {
         if (this._endedTracks === null || this._offset === null || this._resolve === null) {
-            throw new Error(); // @todo
+            throw new Error('The player is in an unexpected state.');
         }
 
         const events = this._midiFileSlicer.slice(start - this._offset, end - this._offset);
@@ -184,18 +184,8 @@ export class MidiPlayer implements IMidiPlayer {
 
         this._endedTracks += endedTracks;
 
-        /* tslint:disable-next-line no-non-null-assertion */
-        if (this._endedTracks === this._json.tracks.length && this._scheduler.now() >= this._latest!) {
-            if (this._schedulerSubscription !== null) {
-                this._schedulerSubscription.unsubscribe();
-            }
-
-            this._schedulerSubscription = null;
-            this._endedTracks = null;
-
-            this._resolve();
-
-            this._resolve = null;
+        if (this._endedTracks === this._json.tracks.length && this._latest !== null && this._scheduler.now() >= this._latest) {
+            this.stop();
         }
     }
 
