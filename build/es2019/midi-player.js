@@ -1,7 +1,8 @@
 import { PlayerState } from './types/player-state';
 export class MidiPlayer {
-    constructor({ encodeMidiMessage, json, midiFileSlicer, midiOutput, scheduler }) {
+    constructor({ encodeMidiMessage, isSendableEvent, json, midiFileSlicer, midiOutput, scheduler }) {
         this._encodeMidiMessage = encodeMidiMessage;
+        this._isSendableEvent = isSendableEvent !== null && isSendableEvent !== void 0 ? isSendableEvent : MidiPlayer._isSendableEvent;
         this._endedTracks = null;
         this._json = json;
         this._midiFileSlicer = midiFileSlicer;
@@ -119,7 +120,7 @@ export class MidiPlayer {
         }
         const events = this._midiFileSlicer.slice(start - this._offset, end - this._offset);
         events
-            .filter(({ event }) => MidiPlayer._isSendableEvent(event))
+            .filter(({ event }) => this._isSendableEvent(event))
             .forEach(({ event, time }) => {
             this._midiOutput.send(this._encodeMidiMessage(event), start + time);
             /* tslint:disable-next-line no-non-null-assertion */

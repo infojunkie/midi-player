@@ -9,6 +9,8 @@ export class MidiPlayer implements IMidiPlayer {
 
     private _endedTracks: null | number;
 
+    private _isSendableEvent: (event: TMidiEvent) => boolean;
+
     private _json: IMidiFile;
 
     private _latest: null | number;
@@ -25,8 +27,9 @@ export class MidiPlayer implements IMidiPlayer {
 
     private _schedulerSubscription: null | { unsubscribe(): void };
 
-    constructor({ encodeMidiMessage, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions) {
+    constructor({ encodeMidiMessage, isSendableEvent, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions) {
         this._encodeMidiMessage = encodeMidiMessage;
+        this._isSendableEvent = isSendableEvent ?? MidiPlayer._isSendableEvent;
         this._endedTracks = null;
         this._json = json;
         this._midiFileSlicer = midiFileSlicer;
@@ -173,7 +176,7 @@ export class MidiPlayer implements IMidiPlayer {
         const events = this._midiFileSlicer.slice(start - this._offset, end - this._offset);
 
         events
-            .filter(({ event }) => MidiPlayer._isSendableEvent(event))
+            .filter(({ event }) => this._isSendableEvent(event))
             .forEach(({ event, time }) => {
                 this._midiOutput.send(this._encodeMidiMessage(event), start + time);
                 /* tslint:disable-next-line no-non-null-assertion */

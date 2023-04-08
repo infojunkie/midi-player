@@ -24,12 +24,14 @@
     var MidiPlayer = /*#__PURE__*/function () {
       function MidiPlayer(_ref) {
         var encodeMidiMessage = _ref.encodeMidiMessage,
+          isSendableEvent = _ref.isSendableEvent,
           json = _ref.json,
           midiFileSlicer = _ref.midiFileSlicer,
           midiOutput = _ref.midiOutput,
           scheduler = _ref.scheduler;
         _classCallCheck(this, MidiPlayer);
         this._encodeMidiMessage = encodeMidiMessage;
+        this._isSendableEvent = isSendableEvent !== null && isSendableEvent !== void 0 ? isSendableEvent : MidiPlayer._isSendableEvent;
         this._endedTracks = null;
         this._json = json;
         this._midiFileSlicer = midiFileSlicer;
@@ -178,7 +180,7 @@
           var events = this._midiFileSlicer.slice(start - this._offset, end - this._offset);
           events.filter(function (_ref3) {
             var event = _ref3.event;
-            return MidiPlayer._isSendableEvent(event);
+            return _this3._isSendableEvent(event);
           }).forEach(function (_ref4) {
             var event = _ref4.event,
               time = _ref4.time;

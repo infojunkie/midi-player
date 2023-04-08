@@ -2,6 +2,7 @@ import { IMidiPlayer, IMidiPlayerOptions } from './interfaces';
 import { PlayerState } from './types/player-state';
 export declare class MidiPlayer implements IMidiPlayer {
     private _encodeMidiMessage;
+    private _isSendableEvent;
     private _endedTracks;
     private _json;
     private _latest;
@@ -11,7 +12,7 @@ export declare class MidiPlayer implements IMidiPlayer {
     private _resolve;
     private _scheduler;
     private _schedulerSubscription;
-    constructor({ encodeMidiMessage, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions);
+    constructor({ encodeMidiMessage, isSendableEvent, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions);
     get position(): number | null;
     get state(): PlayerState;
     pause(): void;
