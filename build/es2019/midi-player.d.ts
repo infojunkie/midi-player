@@ -2,8 +2,8 @@ import { IMidiPlayer, IMidiPlayerOptions } from './interfaces';
 import { PlayerState } from './types/player-state';
 export declare class MidiPlayer implements IMidiPlayer {
     private _encodeMidiMessage;
-    private _isSendableEvent;
     private _endedTracks;
+    private _isSendableEvent;
     private _json;
     private _latest;
     private _midiFileSlicer;
