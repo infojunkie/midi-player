@@ -24,15 +24,15 @@
     var MidiPlayer = /*#__PURE__*/function () {
       function MidiPlayer(_ref) {
         var encodeMidiMessage = _ref.encodeMidiMessage,
-          isSendableEvent = _ref.isSendableEvent,
+          filterMidiMessage = _ref.filterMidiMessage,
           json = _ref.json,
           midiFileSlicer = _ref.midiFileSlicer,
           midiOutput = _ref.midiOutput,
           scheduler = _ref.scheduler;
         _classCallCheck(this, MidiPlayer);
         this._encodeMidiMessage = encodeMidiMessage;
-        this._isSendableEvent = isSendableEvent !== null && isSendableEvent !== void 0 ? isSendableEvent : MidiPlayer._isSendableEvent;
         this._endedTracks = null;
+        this._filterMidiMessage = filterMidiMessage;
         this._json = json;
         this._midiFileSlicer = midiFileSlicer;
         this._midiOutput = midiOutput;
@@ -180,7 +180,7 @@
           var events = this._midiFileSlicer.slice(start - this._offset, end - this._offset);
           events.filter(function (_ref3) {
             var event = _ref3.event;
-            return _this3._isSendableEvent(event);
+            return _this3._filterMidiMessage(event);
           }).forEach(function (_ref4) {
             var event = _ref4.event,
               time = _ref4.time;
@@ -202,11 +202,6 @@
         value: function _isEndOfTrack(event) {
           return 'endOfTrack' in event;
         }
-      }, {
-        key: "_isSendableEvent",
-        value: function _isSendableEvent(event) {
-          return 'controlChange' in event || 'noteOff' in event || 'noteOn' in event || 'programChange' in event;
-        }
       }]);
       return MidiPlayer;
     }();
@@ -216,7 +211,11 @@
     var createMidiPlayerFactory = function createMidiPlayerFactory(createMidiFileSlicer, scheduler) {
       return function (options) {
         var midiFileSlicer = createMidiFileSlicer(options.json);
-        return new MidiPlayer(_objectSpread(_objectSpread({}, options), {}, {
+        return new MidiPlayer(_objectSpread(_objectSpread({
+          filterMidiMessage: function filterMidiMessage(event) {
+            return 'controlChange' in event || 'noteOff' in event || 'noteOn' in event || 'programChange' in event;
+          }
+        }, options), {}, {
           encodeMidiMessage: encodeMidiMessage,
           midiFileSlicer: midiFileSlicer,
           scheduler: scheduler

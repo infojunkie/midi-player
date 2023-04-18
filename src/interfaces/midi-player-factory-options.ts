@@ -6,5 +6,5 @@ export interface IMidiPlayerFactoryOptions {
 
     midiOutput: IMidiOutput;
 
-    isSendableEvent?(event: TMidiEvent): boolean;
+    filterMidiMessage?(event: TMidiEvent): boolean;
 }

@@ -1,9 +1,9 @@
 import { PlayerState } from './types/player-state';
 export class MidiPlayer {
-    constructor({ encodeMidiMessage, isSendableEvent, json, midiFileSlicer, midiOutput, scheduler }) {
+    constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, scheduler }) {
         this._encodeMidiMessage = encodeMidiMessage;
-        this._isSendableEvent = isSendableEvent !== null && isSendableEvent !== void 0 ? isSendableEvent : MidiPlayer._isSendableEvent;
         this._endedTracks = null;
+        this._filterMidiMessage = filterMidiMessage;
         this._json = json;
         this._midiFileSlicer = midiFileSlicer;
         this._midiOutput = midiOutput;
@@ -120,7 +120,7 @@ export class MidiPlayer {
         }
         const events = this._midiFileSlicer.slice(start - this._offset, end - this._offset);
         events
-            .filter(({ event }) => this._isSendableEvent(event))
+            .filter(({ event }) => this._filterMidiMessage(event))
             .forEach(({ event, time }) => {
             this._midiOutput.send(this._encodeMidiMessage(event), start + time);
             /* tslint:disable-next-line no-non-null-assertion */
@@ -134,9 +134,6 @@ export class MidiPlayer {
     }
     static _isEndOfTrack(event) {
         return 'endOfTrack' in event;
-    }
-    static _isSendableEvent(event) {
-        return 'controlChange' in event || 'noteOff' in event || 'noteOn' in event || 'programChange' in event;
     }
 }
 //# sourceMappingURL=midi-player.js.map

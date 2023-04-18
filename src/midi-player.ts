@@ -9,7 +9,7 @@ export class MidiPlayer implements IMidiPlayer {
 
     private _endedTracks: null | number;
 
-    private _isSendableEvent: (event: TMidiEvent) => boolean;
+    private _filterMidiMessage: (event: TMidiEvent) => boolean;
 
     private _json: IMidiFile;
 
@@ -27,10 +27,10 @@ export class MidiPlayer implements IMidiPlayer {
 
     private _schedulerSubscription: null | { unsubscribe(): void };
 
-    constructor({ encodeMidiMessage, isSendableEvent, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions) {
+    constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions) {
         this._encodeMidiMessage = encodeMidiMessage;
-        this._isSendableEvent = isSendableEvent ?? MidiPlayer._isSendableEvent;
         this._endedTracks = null;
+        this._filterMidiMessage = filterMidiMessage;
         this._json = json;
         this._midiFileSlicer = midiFileSlicer;
         this._midiOutput = midiOutput;
@@ -176,7 +176,7 @@ export class MidiPlayer implements IMidiPlayer {
         const events = this._midiFileSlicer.slice(start - this._offset, end - this._offset);
 
         events
-            .filter(({ event }) => this._isSendableEvent(event))
+            .filter(({ event }) => this._filterMidiMessage(event))
             .forEach(({ event, time }) => {
                 this._midiOutput.send(this._encodeMidiMessage(event), start + time);
                 /* tslint:disable-next-line no-non-null-assertion */
@@ -194,9 +194,5 @@ export class MidiPlayer implements IMidiPlayer {
 
     private static _isEndOfTrack(event: TMidiEvent): boolean {
         return 'endOfTrack' in event;
-    }
-
-    private static _isSendableEvent(event: TMidiEvent): boolean {
-        return 'controlChange' in event || 'noteOff' in event || 'noteOn' in event || 'programChange' in event;
     }
 }

@@ -3,6 +3,6 @@ import { IMidiOutput } from './midi-output';
 export interface IMidiPlayerFactoryOptions {
     json: IMidiFile;
     midiOutput: IMidiOutput;
-    isSendableEvent?(event: TMidiEvent): boolean;
+    filterMidiMessage?(event: TMidiEvent): boolean;
 }
 //# sourceMappingURL=midi-player-factory-options.d.ts.map

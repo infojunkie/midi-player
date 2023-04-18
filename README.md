@@ -12,7 +12,6 @@ Here are the features added in this fork:
 - Add attributes `IMidiPlayer.state` and `IMidiPlayer.position`
 - Add methods `IMidiPlayer.pause()`, `IMidiPlayer.resume()`, `IMidiPlayer.stop()`, `IMidiPlayer.seek(position)`
 - Send [MIDI Control Change (CC) message "All Sound Off"](https://anotherproducer.com/online-tools-for-musicians/midi-cc-list/) on player pause/stop
-- Add optional setting `IMidiPlayerOptions.isSendableEvent` as a function `TMidiEvent => boolean` that allows to override the default behaviour of filtering the MIDI events that should be sent to the output.
 
 ## Usage
 
@@ -44,6 +43,15 @@ const midiPlayer = create({ json, midiOutput });
 
 // All MIDI messages have been sent when the promise returned by play() resolves.
 await midiPlayer.play();
+```
+
+By default only control change, note off, note on and program change events will be sent. But it's possible to provide a custom filter function. The following player will only send note off and note on events.
+
+```js
+const midiPlayer = create({
+    filterMidiMessage: (event) => 'noteOff' in event || 'noteOn' in event
+    // ... other options as described above
+});
 ```
 
 If you want to play a binary MIDI file you can use the [midi-json-parser](https://github.com/chrisguttandin/midi-json-parser) package to transform it into a compatible JSON representation.

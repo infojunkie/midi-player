@@ -3,7 +3,7 @@ import { PlayerState } from './types/player-state';
 export declare class MidiPlayer implements IMidiPlayer {
     private _encodeMidiMessage;
     private _endedTracks;
-    private _isSendableEvent;
+    private _filterMidiMessage;
     private _json;
     private _latest;
     private _midiFileSlicer;
@@ -12,7 +12,7 @@ export declare class MidiPlayer implements IMidiPlayer {
     private _resolve;
     private _scheduler;
     private _schedulerSubscription;
-    constructor({ encodeMidiMessage, isSendableEvent, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions);
+    constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions);
     get position(): number | null;
     get state(): PlayerState;
     pause(): void;
@@ -25,6 +25,5 @@ export declare class MidiPlayer implements IMidiPlayer {
     private _promise;
     private _schedule;
     private static _isEndOfTrack;
-    private static _isSendableEvent;
 }
 //# sourceMappingURL=midi-player.d.ts.map
