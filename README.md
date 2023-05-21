@@ -5,13 +5,15 @@
 This module provides a player which sends MIDI messages to connected devices. It schedules the messages with a look ahead of about 500 milliseconds. It does not directly rely on the [Web MIDI API](https://webaudio.github.io/web-midi-api/) but expects a [MIDIOutput](https://webaudio.github.io/web-midi-api/#midioutput-interface) to be passed as constructor argument. But theoretically that could be anything which implements the same interface.
 
 ## Features of this fork
-This is a fork of the original [`midi-player` module by Chris Guttandin](https://github.com/chrisguttandin/midi-player). I decided to fork it instead of attempting to merge back the changes into the original because I am adding features outside the scope that Chris had envisioned for the module. Nothing prevents such a merge to happen in the future, given we find enough time to integrate the codebases. In the meantime, I will do my best to keep this fork updated with the latest upstream changes.
+This is a fork of the original [`midi-player` module by Chris Guttandin](https://github.com/chrisguttandin/midi-player). I decided to fork it instead of attempting to merge back the changes into the upstream because I am adding features outside the scope that Chris had envisioned for the module. Nothing prevents such a merge to happen in the future, given we find enough time to integrate the codebases. In the meantime, I do my best to keep this fork updated with the latest upstream changes, and to contribute to the core functionality that Chris maintains.
 
 Here are the features added in this fork:
 - Add support for [MIDIOutput.clear()](https://developer.mozilla.org/en-US/docs/Web/API/MIDIOutput/clear) for browsers that implement it
 - Add attributes `IMidiPlayer.state` and `IMidiPlayer.position`
 - Add methods `IMidiPlayer.pause()`, `IMidiPlayer.resume()`, `IMidiPlayer.stop()`, `IMidiPlayer.seek(position)`
 - Send [MIDI Control Change (CC) message "All Sound Off"](https://anotherproducer.com/online-tools-for-musicians/midi-cc-list/) on player pause/stop
+
+The version numbering used in this fork is `<major>.<minor>.<patch>-<upstream-major>.<upstream-minor>.<upstream-patch>`.
 
 ## Usage
 
