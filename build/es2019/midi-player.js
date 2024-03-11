@@ -1,3 +1,4 @@
+import { MidiControllerMessage } from './types/midi-controller-message';
 import { PlayerState } from './types/player-state';
 export class MidiPlayer {
     constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, scheduler }) {
@@ -74,7 +75,7 @@ export class MidiPlayer {
             const allSoundOff = this._encodeMidiMessage({
                 channel,
                 controlChange: {
-                    type: 120,
+                    type: MidiControllerMessage.AllSoundOff,
                     value: 127
                 }
             });

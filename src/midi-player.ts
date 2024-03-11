@@ -2,8 +2,8 @@ import { MidiFileSlicer } from 'midi-file-slicer';
 import { IMidiFile, TMidiEvent } from 'midi-json-parser-worker';
 import { IMidiOutput, IMidiPlayer, IMidiPlayerOptions } from './interfaces';
 import { Scheduler } from './scheduler';
-import { PlayerState } from './types/player-state';
 import { MidiControllerMessage } from './types/midi-controller-message';
+import { PlayerState } from './types/player-state';
 
 export class MidiPlayer implements IMidiPlayer {
     private _encodeMidiMessage: (event: TMidiEvent) => Uint8Array;
