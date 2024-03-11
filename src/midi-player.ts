@@ -3,6 +3,7 @@ import { IMidiFile, TMidiEvent } from 'midi-json-parser-worker';
 import { IMidiOutput, IMidiPlayer, IMidiPlayerOptions } from './interfaces';
 import { Scheduler } from './scheduler';
 import { PlayerState } from './types/player-state';
+import { MidiControllerMessage } from './types/midi-controller-message';
 
 export class MidiPlayer implements IMidiPlayer {
     private _encodeMidiMessage: (event: TMidiEvent) => Uint8Array;
@@ -120,7 +121,7 @@ export class MidiPlayer implements IMidiPlayer {
             const allSoundOff = this._encodeMidiMessage({
                 channel,
                 controlChange: {
-                  type: 120,
+                  type: MidiControllerMessage.AllSoundOff,
                   value: 127
                 }
             } as TMidiEvent);
