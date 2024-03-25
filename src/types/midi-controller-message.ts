@@ -66,6 +66,6 @@ export enum MidiControllerMessage {
     AllNotesOff,
     OmniModeOff,
     OmniModeOn,
-    MonoOperationAndAllNotesOff,
-    PolyOperationAndAllNotesOff
+    PolyModeOff,
+    PolyModeOn
 }

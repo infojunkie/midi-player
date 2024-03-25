@@ -66,7 +66,7 @@ export declare enum MidiControllerMessage {
     AllNotesOff = 123,
     OmniModeOff = 124,
     OmniModeOn = 125,
-    MonoOperationAndAllNotesOff = 126,
-    PolyOperationAndAllNotesOff = 127
+    PolyModeOff = 126,
+    PolyModeOn = 127
 }
 //# sourceMappingURL=midi-controller-message.d.ts.map

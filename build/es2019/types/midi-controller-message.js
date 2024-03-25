@@ -67,7 +67,7 @@ export var MidiControllerMessage;
     MidiControllerMessage[MidiControllerMessage["AllNotesOff"] = 123] = "AllNotesOff";
     MidiControllerMessage[MidiControllerMessage["OmniModeOff"] = 124] = "OmniModeOff";
     MidiControllerMessage[MidiControllerMessage["OmniModeOn"] = 125] = "OmniModeOn";
-    MidiControllerMessage[MidiControllerMessage["MonoOperationAndAllNotesOff"] = 126] = "MonoOperationAndAllNotesOff";
-    MidiControllerMessage[MidiControllerMessage["PolyOperationAndAllNotesOff"] = 127] = "PolyOperationAndAllNotesOff";
+    MidiControllerMessage[MidiControllerMessage["PolyModeOff"] = 126] = "PolyModeOff";
+    MidiControllerMessage[MidiControllerMessage["PolyModeOn"] = 127] = "PolyModeOn";
 })(MidiControllerMessage || (MidiControllerMessage = {}));
 //# sourceMappingURL=midi-controller-message.js.map

@@ -83,8 +83,8 @@
       MidiControllerMessage[MidiControllerMessage["AllNotesOff"] = 123] = "AllNotesOff";
       MidiControllerMessage[MidiControllerMessage["OmniModeOff"] = 124] = "OmniModeOff";
       MidiControllerMessage[MidiControllerMessage["OmniModeOn"] = 125] = "OmniModeOn";
-      MidiControllerMessage[MidiControllerMessage["MonoOperationAndAllNotesOff"] = 126] = "MonoOperationAndAllNotesOff";
-      MidiControllerMessage[MidiControllerMessage["PolyOperationAndAllNotesOff"] = 127] = "PolyOperationAndAllNotesOff";
+      MidiControllerMessage[MidiControllerMessage["PolyModeOff"] = 126] = "PolyModeOff";
+      MidiControllerMessage[MidiControllerMessage["PolyModeOn"] = 127] = "PolyModeOn";
     })(exports.MidiControllerMessage || (exports.MidiControllerMessage = {}));
 
     exports.PlayerState = void 0;
@@ -115,7 +115,7 @@
         this._scheduler = scheduler;
         this._schedulerSubscription = null;
       }
-      _createClass(MidiPlayer, [{
+      return _createClass(MidiPlayer, [{
         key: "position",
         get: function get() {
           return this._offset === null ? null : this._scheduler.now() - this._offset;
@@ -276,7 +276,6 @@
           return 'endOfTrack' in event;
         }
       }]);
-      return MidiPlayer;
     }();
 
     function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
@@ -308,7 +307,7 @@
         this._numberOfSubscribers = 0;
         this._subject = new rxjs.Subject();
       }
-      _createClass(Scheduler, [{
+      return _createClass(Scheduler, [{
         key: "now",
         value: function now() {
           return this._performance.now();
@@ -371,7 +370,6 @@
           this._intervalId = null;
         }
       }]);
-      return Scheduler;
     }();
 
     exports.MidiRegisteredParameterNumber = void 0;
