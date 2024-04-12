@@ -188,9 +188,7 @@
           var _a, _b;
           (_b = (_a = this._midiOutput).clear) === null || _b === void 0 ? void 0 : _b.call(_a);
           // Send AllSoundOff message to all channels.
-          _toConsumableArray(Array(16).keys()).map(function (n) {
-            return n + 1;
-          }).forEach(function (channel) {
+          _toConsumableArray(Array(16).keys()).forEach(function (channel) {
             var allSoundOff = _this._encodeMidiMessage({
               channel: channel,
               controlChange: {

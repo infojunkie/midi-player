@@ -71,7 +71,7 @@ export class MidiPlayer {
         var _a, _b;
         (_b = (_a = this._midiOutput).clear) === null || _b === void 0 ? void 0 : _b.call(_a);
         // Send AllSoundOff message to all channels.
-        [...Array(16).keys()].map(n => n + 1).forEach(channel => {
+        [...Array(16).keys()].forEach(channel => {
             const allSoundOff = this._encodeMidiMessage({
                 channel,
                 controlChange: {
