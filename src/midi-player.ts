@@ -1,54 +1,47 @@
 import { MidiFileSlicer } from 'midi-file-slicer';
 import { IMidiFile, TMidiEvent } from 'midi-json-parser-worker';
-import { IMidiOutput, IMidiPlayer, IMidiPlayerOptions } from './interfaces';
+import { IMidiOutput, IMidiPlayer, IMidiPlayerOptions, IState } from './interfaces';
 import { Scheduler } from './scheduler';
-import { MidiControllerMessage } from './types/midi-controller-message';
 import { PlayerState } from './types/player-state';
+
+const ALL_SOUND_OFF_EVENT_DATA = Array.from({ length: 16 }, (_, index) => new Uint8Array([176 + index, 120, 0]));
 
 export class MidiPlayer implements IMidiPlayer {
     private _encodeMidiMessage: (event: TMidiEvent) => Uint8Array;
-
-    private _endedTracks: null | number;
 
     private _filterMidiMessage: (event: TMidiEvent) => boolean;
 
     private _json: IMidiFile;
 
-    private _latest: null | number;
-
     private _midiFileSlicer: MidiFileSlicer;
 
     private _midiOutput: IMidiOutput;
 
-    private _offset: null | number;
-
-    private _resolve: null | (() => void);
-
     private _scheduler: Scheduler;
 
-    private _schedulerSubscription: null | { unsubscribe(): void };
+    private _state: null | IState;
 
     constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions) {
         this._encodeMidiMessage = encodeMidiMessage;
-        this._endedTracks = null;
         this._filterMidiMessage = filterMidiMessage;
         this._json = json;
         this._midiFileSlicer = midiFileSlicer;
         this._midiOutput = midiOutput;
-        this._offset = null;
-        this._latest = null;
-        this._resolve = null;
         this._scheduler = scheduler;
-        this._schedulerSubscription = null;
+        this._state = null;
     }
 
     public get position(): number | null {
-        return this._offset === null ? null : this._scheduler.now() - this._offset;
+        return this._state === null ? null : this._scheduler.now() - this._state.offset;
     }
 
     public get state(): PlayerState {
-        if (this._schedulerSubscription === null && this._resolve === null) {
-            return this._endedTracks === null ? PlayerState.Stopped : PlayerState.Paused;
+        if (this._state === null) {
+            return PlayerState.Stopped;
+        }
+
+        if (this._state.latest === null) {
+            return PlayerState.Paused;
         }
 
         return PlayerState.Playing;
@@ -61,8 +54,8 @@ export class MidiPlayer implements IMidiPlayer {
 
         this._pause();
 
-        if (this._offset !== null) {
-            this._offset = this._scheduler.now() - this._offset;
+        if (this._state !== null) {
+            this._state.offset = this._scheduler.now() - this._state.offset;
         }
     }
 
@@ -71,10 +64,8 @@ export class MidiPlayer implements IMidiPlayer {
             throw new Error('The player is currently playing.');
         }
 
-        this._endedTracks = 0;
-
-        if (this._offset !== null) {
-            this._offset = this._scheduler.now() - this._offset;
+        if (this._state !== null) {
+            this._state.offset = this._scheduler.now() - this._state.offset;
         }
 
         return this._promise();
@@ -85,112 +76,106 @@ export class MidiPlayer implements IMidiPlayer {
             throw new Error('The player is not currently paused.');
         }
 
-        if (this._offset !== null) {
-            this._offset = this._scheduler.now() - this._offset;
+        if (this._state !== null) {
+            this._state.offset = this._scheduler.now() - this._state.offset;
         }
 
         return this._promise();
     }
 
     public seek(position: number): void {
+        if (this.state === PlayerState.Stopped) {
+            throw new Error('The player is currently stopped.');
+        }
+
         this._clear();
 
-        if (this.state !== PlayerState.Playing) {
-            this._offset = position;
+        if (this.state === PlayerState.Paused) {
+            this._state!.offset = position;
         }
         else {
             const now = this._scheduler.now();
-            this._offset = now - position;
+            this._state!.offset = now - position;
             this._scheduler.reset(now);
         }
     }
 
     public stop(): void {
-        this._pause();
+        if (this.state === PlayerState.Stopped) {
+            throw new Error('The player is already stopped.');
+        }
 
-        this._offset = null;
+        this._clear();
 
-        this._endedTracks = null;
+        this._stop(this._state!);
     }
 
     private _clear(): void {
+        // Bug #1: Chrome does not yet implement the clear() method.
         this._midiOutput.clear?.();
-
-        // Send AllSoundOff message to all channels.
-        [...Array(16).keys()].forEach(channel => {
-            const allSoundOff = this._encodeMidiMessage({
-                channel,
-                controlChange: {
-                  type: MidiControllerMessage.AllSoundOff,
-                  value: 127
-                }
-            } as TMidiEvent);
-
-            if (this._latest !== null) {
-                this._midiOutput.send(allSoundOff, this._latest);
-            }
-        })
+        ALL_SOUND_OFF_EVENT_DATA.forEach((data) => this._midiOutput.send(data));
     }
 
     private _pause(): void {
-        if (this._resolve !== null) {
-            this._resolve();
-            this._resolve = null;
-        }
+        const { resolve, schedulerSubscription } = this._state!;
 
-        if (this._schedulerSubscription !== null) {
-            this._schedulerSubscription.unsubscribe();
-            this._schedulerSubscription = null;
-        }
+        schedulerSubscription?.unsubscribe();
+
+        resolve();
 
         this._clear();
     }
 
     private _promise(): Promise<void> {
         return new Promise((resolve, reject) => {
-            this._resolve = resolve;
-            this._schedulerSubscription = this._scheduler.subscribe({
+            const schedulerSubscription = this._scheduler.subscribe({
                 error: (err) => reject(err),
                 next: ({ end, start }) => {
-                    if (this._offset === null) {
-                        this._offset = start;
+                    if (this._state === null) {
+                        this._state = { endedTracks: 0, offset: start, resolve, schedulerSubscription: null, latest: start };
                     }
-                    if (this._latest === null) {
-                        this._latest = start;
+                    else if (this._state.latest === null) {
+                        this._state.latest = start;
                     }
-
-                    this._schedule(start, end);
+                    this._schedule(start, end, this._state);
                 }
             });
 
-            if (this._resolve === null) {
-                this._schedulerSubscription.unsubscribe();
+            if (this._state === null) {
+                schedulerSubscription.unsubscribe();
+            } else {
+                this._state.schedulerSubscription = schedulerSubscription;
             }
         });
     }
 
-    private _schedule(start: number, end: number): void {
-        if (this._endedTracks === null || this._offset === null || this._resolve === null) {
-            throw new Error('The player is in an unexpected state.');
-        }
-
-        const events = this._midiFileSlicer.slice(start - this._offset, end - this._offset);
+    private _schedule(start: number, end: number, state: IState): void {
+        const events = this._midiFileSlicer.slice(start - state.offset, end - state.offset);
 
         events
             .filter(({ event }) => this._filterMidiMessage(event))
             .forEach(({ event, time }) => {
                 this._midiOutput.send(this._encodeMidiMessage(event), start + time);
-                /* tslint:disable-next-line no-non-null-assertion */
-                this._latest = Math.max(this._latest!, start + time);
+                state.latest = Math.max(state.latest!, start + time);
             });
 
         const endedTracks = events.filter(({ event }) => MidiPlayer._isEndOfTrack(event)).length;
 
-        this._endedTracks += endedTracks;
+        state.endedTracks += endedTracks;
 
-        if (this._endedTracks === this._json.tracks.length && this._latest !== null && this._scheduler.now() >= this._latest) {
-            this.stop();
+        if (state.endedTracks === this._json.tracks.length && state.latest !== null && this._scheduler.now() >= state.latest) {
+            this._stop(state);
         }
+    }
+
+    private _stop(state: IState): void {
+        const { resolve, schedulerSubscription } = state;
+
+        schedulerSubscription?.unsubscribe();
+
+        this._state = null;
+
+        resolve();
     }
 
     private static _isEndOfTrack(event: TMidiEvent): boolean {
