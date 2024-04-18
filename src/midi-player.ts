@@ -40,7 +40,7 @@ export class MidiPlayer implements IMidiPlayer {
             return PlayerState.Stopped;
         }
 
-        if (this._state.latest === null) {
+        if (this._state.paused !== null) {
             return PlayerState.Paused;
         }
 
@@ -52,20 +52,14 @@ export class MidiPlayer implements IMidiPlayer {
             throw new Error('The player is not currently playing.');
         }
 
-        this._pause();
+        this._clear();
 
-        if (this._state !== null) {
-            this._state.offset = this._scheduler.now() - this._state.offset;
-        }
+        this._pause(this._state!);
     }
 
     public play(): Promise<void> {
-        if (this.state === PlayerState.Playing) {
-            throw new Error('The player is currently playing.');
-        }
-
-        if (this._state !== null) {
-            this._state.offset = this._scheduler.now() - this._state.offset;
+        if (this.state !== PlayerState.Stopped) {
+            throw new Error('The player is not currently stopped.');
         }
 
         return this._promise();
@@ -74,10 +68,6 @@ export class MidiPlayer implements IMidiPlayer {
     public resume(): Promise<void> {
         if (this.state !== PlayerState.Paused) {
             throw new Error('The player is not currently paused.');
-        }
-
-        if (this._state !== null) {
-            this._state.offset = this._scheduler.now() - this._state.offset;
         }
 
         return this._promise();
@@ -116,14 +106,14 @@ export class MidiPlayer implements IMidiPlayer {
         ALL_SOUND_OFF_EVENT_DATA.forEach((data) => this._midiOutput.send(data));
     }
 
-    private _pause(): void {
-        const { resolve, schedulerSubscription } = this._state!;
+    private _pause(state: IState): void {
+        const { resolve, schedulerSubscription } = state;
 
         schedulerSubscription?.unsubscribe();
 
-        resolve();
+        state.paused = this._scheduler.now() - state.offset;
 
-        this._clear();
+        resolve();
     }
 
     private _promise(): Promise<void> {
@@ -132,10 +122,10 @@ export class MidiPlayer implements IMidiPlayer {
                 error: (err) => reject(err),
                 next: ({ end, start }) => {
                     if (this._state === null) {
-                        this._state = { endedTracks: 0, offset: start, resolve, schedulerSubscription: null, latest: start };
+                        this._state = { endedTracks: 0, offset: start, resolve, schedulerSubscription: null, latest: start, paused: null };
                     }
-                    else if (this._state.latest === null) {
-                        this._state.latest = start;
+                    if (this._state.paused !== null) {
+                        // TODO Handle paused state.
                     }
                     this._schedule(start, end, this._state);
                 }
