@@ -92,8 +92,8 @@
           }
           this._clear();
           if (this.state === exports.PlayerState.Paused) {
-            this._state.offset = position;
-          } else {
+            this._state.paused = position;
+          } else if (this.state === exports.PlayerState.Playing) {
             var now = this._scheduler.now();
             this._state.offset = now - position;
             this._scheduler.reset(now);
@@ -150,7 +150,10 @@
                     paused: null
                   };
                 }
-                if (_this2._state.paused !== null) ;
+                if (_this2._state.paused !== null) {
+                  _this2._state.offset = _this2._scheduler.now() - _this2._state.paused;
+                  _this2._state.paused = null;
+                }
                 _this2._schedule(start, end, _this2._state);
               }
             });

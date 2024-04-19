@@ -81,9 +81,9 @@ export class MidiPlayer implements IMidiPlayer {
         this._clear();
 
         if (this.state === PlayerState.Paused) {
-            this._state!.offset = position;
+            this._state!.paused = position;
         }
-        else {
+        else if (this.state === PlayerState.Playing) {
             const now = this._scheduler.now();
             this._state!.offset = now - position;
             this._scheduler.reset(now);
@@ -125,7 +125,8 @@ export class MidiPlayer implements IMidiPlayer {
                         this._state = { endedTracks: 0, offset: start, resolve, schedulerSubscription: null, latest: start, paused: null };
                     }
                     if (this._state.paused !== null) {
-                        // TODO Handle paused state.
+                        this._state.offset = this._scheduler.now() - this._state.paused;
+                        this._state.paused = null;
                     }
                     this._schedule(start, end, this._state);
                 }
