@@ -183,7 +183,7 @@
             return MidiPlayer._isEndOfTrack(event);
           }).length;
           state.endedTracks += endedTracks;
-          if (state.endedTracks === this._json.tracks.length && state.latest !== null && this._scheduler.now() >= state.latest) {
+          if (state.endedTracks === this._json.tracks.length && this._scheduler.now() >= state.latest) {
             this._stop(state);
           }
         }

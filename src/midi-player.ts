@@ -147,14 +147,14 @@ export class MidiPlayer implements IMidiPlayer {
             .filter(({ event }) => this._filterMidiMessage(event))
             .forEach(({ event, time }) => {
                 this._midiOutput.send(this._encodeMidiMessage(event), start + time);
-                state.latest = Math.max(state.latest!, start + time);
+                state.latest = Math.max(state.latest, start + time);
             });
 
         const endedTracks = events.filter(({ event }) => MidiPlayer._isEndOfTrack(event)).length;
 
         state.endedTracks += endedTracks;
 
-        if (state.endedTracks === this._json.tracks.length && state.latest !== null && this._scheduler.now() >= state.latest) {
+        if (state.endedTracks === this._json.tracks.length && this._scheduler.now() >= state.latest) {
             this._stop(state);
         }
     }
