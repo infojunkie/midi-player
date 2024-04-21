@@ -57,7 +57,8 @@ export class MidiPlayer {
     }
     stop() {
         if (this.state === PlayerState.Stopped) {
-            throw new Error('The player is already stopped.');
+            //throw new Error('The player is already stopped.');
+            return;
         }
         this._clear();
         this._stop(this._state);
@@ -71,6 +72,7 @@ export class MidiPlayer {
     _pause(state) {
         const { resolve, schedulerSubscription } = state;
         schedulerSubscription === null || schedulerSubscription === void 0 ? void 0 : schedulerSubscription.unsubscribe();
+        state.schedulerSubscription = null;
         state.paused = this._scheduler.now() - state.offset;
         resolve();
     }

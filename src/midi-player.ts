@@ -92,7 +92,8 @@ export class MidiPlayer implements IMidiPlayer {
 
     public stop(): void {
         if (this.state === PlayerState.Stopped) {
-            throw new Error('The player is already stopped.');
+            //throw new Error('The player is already stopped.');
+            return;
         }
 
         this._clear();
@@ -111,6 +112,7 @@ export class MidiPlayer implements IMidiPlayer {
 
         schedulerSubscription?.unsubscribe();
 
+        state.schedulerSubscription = null;
         state.paused = this._scheduler.now() - state.offset;
 
         resolve();

@@ -103,7 +103,8 @@
         key: "stop",
         value: function stop() {
           if (this.state === exports.PlayerState.Stopped) {
-            throw new Error('The player is already stopped.');
+            //throw new Error('The player is already stopped.');
+            return;
           }
           this._clear();
           this._stop(this._state);
@@ -125,6 +126,7 @@
           var resolve = state.resolve,
             schedulerSubscription = state.schedulerSubscription;
           schedulerSubscription === null || schedulerSubscription === void 0 ? void 0 : schedulerSubscription.unsubscribe();
+          state.schedulerSubscription = null;
           state.paused = this._scheduler.now() - state.offset;
           resolve();
         }
