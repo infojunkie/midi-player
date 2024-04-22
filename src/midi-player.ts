@@ -54,7 +54,7 @@ export class MidiPlayer implements IMidiPlayer {
 
         this._clear();
 
-        this._pause(this._state!);
+        this._pause(this._state as IState);
     }
 
     public play(): Promise<void> {
@@ -80,25 +80,26 @@ export class MidiPlayer implements IMidiPlayer {
 
         this._clear();
 
+        const state = this._state as IState;
         if (this.state === PlayerState.Paused) {
-            this._state!.paused = position;
+            state.paused = position;
         }
         else if (this.state === PlayerState.Playing) {
             const now = this._scheduler.now();
-            this._state!.offset = now - position;
+            state.offset = now - position;
             this._scheduler.reset(now);
         }
     }
 
     public stop(): void {
         if (this.state === PlayerState.Stopped) {
-            //throw new Error('The player is already stopped.');
+            // Don't throw because stop() is idempotent.
             return;
         }
 
         this._clear();
 
-        this._stop(this._state!);
+        this._stop(this._state as IState);
     }
 
     private _clear(): void {

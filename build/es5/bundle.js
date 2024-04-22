@@ -91,11 +91,12 @@
             throw new Error('The player is currently stopped.');
           }
           this._clear();
+          var state = this._state;
           if (this.state === exports.PlayerState.Paused) {
-            this._state.paused = position;
+            state.paused = position;
           } else if (this.state === exports.PlayerState.Playing) {
             var now = this._scheduler.now();
-            this._state.offset = now - position;
+            state.offset = now - position;
             this._scheduler.reset(now);
           }
         }
@@ -103,7 +104,7 @@
         key: "stop",
         value: function stop() {
           if (this.state === exports.PlayerState.Stopped) {
-            //throw new Error('The player is already stopped.');
+            // Don't throw because stop() is idempotent.
             return;
           }
           this._clear();
@@ -243,7 +244,7 @@
       }, {
         key: "reset",
         value: function reset(currentTime) {
-          this._nextTick = currentTime;
+          this._nextTick = currentTime - INTERVAL;
           this._subject.next({
             end: this._nextTick + INTERVAL,
             start: this._nextTick

@@ -14,7 +14,7 @@ export class Scheduler {
         return this._performance.now();
     }
     reset(currentTime) {
-        this._nextTick = currentTime;
+        this._nextTick = currentTime - INTERVAL;
         this._subject.next({ end: this._nextTick + INTERVAL, start: this._nextTick });
     }
     subscribe(observer) {

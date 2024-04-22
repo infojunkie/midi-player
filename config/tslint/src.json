@@ -1,6 +1,3 @@
 {
-    "extends": "tslint-config-holy-grail",
-    "rules": {
-        "no-non-null-assertion": false
-    }
+    "extends": "tslint-config-holy-grail"
 }

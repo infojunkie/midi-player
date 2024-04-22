@@ -46,18 +46,19 @@ export class MidiPlayer {
             throw new Error('The player is currently stopped.');
         }
         this._clear();
+        const state = this._state;
         if (this.state === PlayerState.Paused) {
-            this._state.paused = position;
+            state.paused = position;
         }
         else if (this.state === PlayerState.Playing) {
             const now = this._scheduler.now();
-            this._state.offset = now - position;
+            state.offset = now - position;
             this._scheduler.reset(now);
         }
     }
     stop() {
         if (this.state === PlayerState.Stopped) {
-            //throw new Error('The player is already stopped.');
+            // Don't throw because stop() is idempotent.
             return;
         }
         this._clear();

@@ -29,7 +29,7 @@ export class Scheduler {
     }
 
     public reset(currentTime: number): void {
-        this._nextTick = currentTime;
+        this._nextTick = currentTime - INTERVAL;
 
         this._subject.next({ end: this._nextTick + INTERVAL, start: this._nextTick });
     }
