@@ -48,7 +48,7 @@ export class MidiPlayer {
         this._clear();
         const state = this._state;
         if (this.state === PlayerState.Paused) {
-            state.paused = position;
+            state.paused = position - 1;
         }
         else if (this.state === PlayerState.Playing) {
             const now = this._scheduler.now();
@@ -58,8 +58,7 @@ export class MidiPlayer {
     }
     stop() {
         if (this.state === PlayerState.Stopped) {
-            // Don't throw because stop() is idempotent.
-            return;
+            throw new Error('The player is already stopped.');
         }
         this._clear();
         this._stop(this._state);
@@ -86,7 +85,7 @@ export class MidiPlayer {
                         this._state = { endedTracks: 0, offset: start, resolve, schedulerSubscription: null, latest: start, paused: null };
                     }
                     if (this._state.paused !== null) {
-                        this._state.offset = this._scheduler.now() - this._state.paused;
+                        this._state.offset = start - this._state.paused;
                         this._state.paused = null;
                     }
                     this._schedule(start, end, this._state);

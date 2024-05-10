@@ -93,7 +93,7 @@
           this._clear();
           var state = this._state;
           if (this.state === exports.PlayerState.Paused) {
-            state.paused = position;
+            state.paused = position - 1;
           } else if (this.state === exports.PlayerState.Playing) {
             var now = this._scheduler.now();
             state.offset = now - position;
@@ -104,8 +104,7 @@
         key: "stop",
         value: function stop() {
           if (this.state === exports.PlayerState.Stopped) {
-            // Don't throw because stop() is idempotent.
-            return;
+            throw new Error('The player is already stopped.');
           }
           this._clear();
           this._stop(this._state);
@@ -154,7 +153,7 @@
                   };
                 }
                 if (_this2._state.paused !== null) {
-                  _this2._state.offset = _this2._scheduler.now() - _this2._state.paused;
+                  _this2._state.offset = start - _this2._state.paused;
                   _this2._state.paused = null;
                 }
                 _this2._schedule(start, end, _this2._state);
