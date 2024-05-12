@@ -115,6 +115,7 @@ export class MidiPlayer implements IMidiPlayer {
         ALL_SOUND_OFF_EVENT_DATA.forEach((data) => this._midiOutput.send(data));
     }
 
+    /* tslint:disable-next-line prefer-function-over-method */
     private _pause(state: IState): void {
         const { resolve, stopScheduler } = state;
 
