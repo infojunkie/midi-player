@@ -1,6 +1,6 @@
 import { encodeMidiMessage } from '../helpers/encode-midi-message';
 import { MidiPlayer } from '../midi-player';
-export const createMidiPlayerFactory = (createMidiFileSlicer, scheduler) => {
+export const createMidiPlayerFactory = (createMidiFileSlicer, startScheduler) => {
     return (options) => {
         const midiFileSlicer = createMidiFileSlicer(options.json);
         return new MidiPlayer({
@@ -8,7 +8,7 @@ export const createMidiPlayerFactory = (createMidiFileSlicer, scheduler) => {
             ...options,
             encodeMidiMessage,
             midiFileSlicer,
-            scheduler
+            startScheduler
         });
     };
 };

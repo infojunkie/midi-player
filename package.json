@@ -12,28 +12,27 @@
         }
     },
     "dependencies": {
-        "@babel/runtime": "^7.24.4",
-        "json-midi-message-encoder": "^4.1.39",
-        "midi-file-slicer": "^6.0.99",
-        "midi-json-parser-worker": "^8.1.40",
-        "rxjs": "^7.8.1",
+        "@babel/runtime": "^7.24.5",
+        "json-midi-message-encoder": "^4.1.40",
+        "midi-file-slicer": "^6.0.100",
+        "midi-json-parser-worker": "^8.1.41",
         "tslib": "^2.6.2",
-        "worker-timers": "^7.1.7"
+        "worker-timers": "^7.1.8"
     },
     "description": "A MIDI player which sends MIDI messages to connected devices.",
     "devDependencies": {
-        "@babel/core": "^7.24.4",
+        "@babel/core": "^7.24.5",
         "@babel/plugin-external-helpers": "^7.24.1",
         "@babel/plugin-transform-runtime": "^7.24.3",
-        "@babel/preset-env": "^7.24.4",
-        "@commitlint/cli": "^19.2.2",
-        "@commitlint/config-angular": "^19.2.2",
+        "@babel/preset-env": "^7.24.5",
+        "@commitlint/cli": "^19.3.0",
+        "@commitlint/config-angular": "^19.3.0",
         "@rollup/plugin-babel": "^6.0.4",
         "chai": "^4.3.10",
         "commitizen": "^4.3.0",
         "cz-conventional-changelog": "^3.3.0",
         "eslint": "^8.57.0",
-        "eslint-config-holy-grail": "^59.0.6",
+        "eslint-config-holy-grail": "^59.0.10",
         "grunt": "^1.6.1",
         "grunt-cli": "^1.4.3",
         "grunt-sh": "^0.2.1",
@@ -50,9 +49,9 @@
         "load-grunt-config": "^4.0.1",
         "mocha": "^10.4.0",
         "prettier": "^3.2.5",
-        "rimraf": "^5.0.5",
-        "rollup": "^4.14.3",
-        "sinon": "^17.0.1",
+        "rimraf": "^5.0.6",
+        "rollup": "^4.17.2",
+        "sinon": "^17.0.2",
         "sinon-chai": "^3.7.0",
         "ts-loader": "^9.5.1",
         "tsconfig-holy-grail": "^15.0.1",
@@ -90,5 +89,5 @@
         "test": "grunt lint && grunt test"
     },
     "types": "build/es2019/module.d.ts",
-    "version": "0.7.1-7.3.0"
+    "version": "0.7.2-7.3.4"
 }

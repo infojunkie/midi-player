@@ -1,11 +1,11 @@
 export interface IState {
     endedTracks: number;
     latest: number;
+    nowScheduler: null | (() => number);
     offset: number;
     paused: null | number;
-    schedulerSubscription: null | {
-        unsubscribe(): void;
-    };
+    resetScheduler: null | (() => void);
+    stopScheduler: null | (() => void);
     resolve(): void;
 }
 //# sourceMappingURL=state.d.ts.map

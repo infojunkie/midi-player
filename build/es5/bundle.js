@@ -1,8 +1,8 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('worker-timers'), require('midi-file-slicer'), require('@babel/runtime/helpers/defineProperty'), require('json-midi-message-encoder'), require('@babel/runtime/helpers/classCallCheck'), require('@babel/runtime/helpers/createClass'), require('rxjs')) :
-    typeof define === 'function' && define.amd ? define(['exports', 'worker-timers', 'midi-file-slicer', '@babel/runtime/helpers/defineProperty', 'json-midi-message-encoder', '@babel/runtime/helpers/classCallCheck', '@babel/runtime/helpers/createClass', 'rxjs'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.midiPlayer = {}, global.workerTimers, global.midiFileSlicer, global._defineProperty, global.jsonMidiMessageEncoder, global._classCallCheck, global._createClass, global.rxjs));
-})(this, (function (exports, workerTimers, midiFileSlicer, _defineProperty, jsonMidiMessageEncoder, _classCallCheck, _createClass, rxjs) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('worker-timers'), require('midi-file-slicer'), require('@babel/runtime/helpers/defineProperty'), require('json-midi-message-encoder'), require('@babel/runtime/helpers/classCallCheck'), require('@babel/runtime/helpers/createClass')) :
+    typeof define === 'function' && define.amd ? define(['exports', 'worker-timers', 'midi-file-slicer', '@babel/runtime/helpers/defineProperty', 'json-midi-message-encoder', '@babel/runtime/helpers/classCallCheck', '@babel/runtime/helpers/createClass'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.midiPlayer = {}, global.workerTimers, global.midiFileSlicer, global._defineProperty, global.jsonMidiMessageEncoder, global._classCallCheck, global._createClass));
+})(this, (function (exports, workerTimers, midiFileSlicer, _defineProperty, jsonMidiMessageEncoder, _classCallCheck, _createClass) { 'use strict';
 
     var createMidiFileSlicer = function createMidiFileSlicer(json) {
       return new midiFileSlicer.MidiFileSlicer({
@@ -33,20 +33,24 @@
           json = _ref.json,
           midiFileSlicer = _ref.midiFileSlicer,
           midiOutput = _ref.midiOutput,
-          scheduler = _ref.scheduler;
+          startScheduler = _ref.startScheduler;
         _classCallCheck(this, MidiPlayer);
         this._encodeMidiMessage = encodeMidiMessage;
         this._filterMidiMessage = filterMidiMessage;
         this._json = json;
         this._midiFileSlicer = midiFileSlicer;
         this._midiOutput = midiOutput;
-        this._scheduler = scheduler;
+        this._startScheduler = startScheduler;
         this._state = null;
       }
       return _createClass(MidiPlayer, [{
         key: "position",
         get: function get() {
-          return this._state === null ? null : this._scheduler.now() - this._state.offset;
+          if (this._state === null) {
+            return null;
+          }
+          var nowScheduler = this._state.nowScheduler;
+          return nowScheduler() - this._state.offset;
         }
       }, {
         key: "state",
@@ -87,6 +91,7 @@
       }, {
         key: "seek",
         value: function seek(position) {
+          var _a;
           if (this.state === exports.PlayerState.Stopped) {
             throw new Error('The player is currently stopped.');
           }
@@ -95,9 +100,9 @@
           if (this.state === exports.PlayerState.Paused) {
             state.paused = position - 1;
           } else if (this.state === exports.PlayerState.Playing) {
-            var now = this._scheduler.now();
-            state.offset = now - position;
-            this._scheduler.reset(now);
+            var nowScheduler = state.nowScheduler;
+            state.offset = nowScheduler() - position;
+            (_a = state.resetScheduler) === null || _a === void 0 ? void 0 : _a.call(state);
           }
         }
       }, {
@@ -124,22 +129,18 @@
         key: "_pause",
         value: function _pause(state) {
           var resolve = state.resolve,
-            schedulerSubscription = state.schedulerSubscription;
-          schedulerSubscription === null || schedulerSubscription === void 0 ? void 0 : schedulerSubscription.unsubscribe();
-          state.schedulerSubscription = null;
-          state.paused = this._scheduler.now() - state.offset;
+            stopScheduler = state.stopScheduler;
+          stopScheduler === null || stopScheduler === void 0 ? void 0 : stopScheduler();
+          var nowScheduler = state.nowScheduler;
+          state.paused = nowScheduler() - state.offset;
           resolve();
         }
       }, {
         key: "_promise",
         value: function _promise() {
           var _this2 = this;
-          return new Promise(function (resolve, reject) {
-            var schedulerSubscription = _this2._scheduler.subscribe({
-              error: function error(err) {
-                return reject(err);
-              },
-              next: function next(_ref2) {
+          return new Promise(function (resolve) {
+            var _this2$_startSchedule = _this2._startScheduler(function (_ref2) {
                 var end = _ref2.end,
                   start = _ref2.start;
                 if (_this2._state === null) {
@@ -147,7 +148,9 @@
                     endedTracks: 0,
                     offset: start,
                     resolve: resolve,
-                    schedulerSubscription: null,
+                    stopScheduler: null,
+                    resetScheduler: null,
+                    nowScheduler: null,
                     latest: start,
                     paused: null
                   };
@@ -157,12 +160,16 @@
                   _this2._state.paused = null;
                 }
                 _this2._schedule(start, end, _this2._state);
-              }
-            });
+              }),
+              stopScheduler = _this2$_startSchedule.stop,
+              resetScheduler = _this2$_startSchedule.reset,
+              nowScheduler = _this2$_startSchedule.now;
             if (_this2._state === null) {
-              schedulerSubscription.unsubscribe();
+              stopScheduler();
             } else {
-              _this2._state.schedulerSubscription = schedulerSubscription;
+              _this2._state.stopScheduler = stopScheduler;
+              _this2._state.resetScheduler = resetScheduler;
+              _this2._state.nowScheduler = nowScheduler;
             }
           });
         }
@@ -185,7 +192,7 @@
             return MidiPlayer._isEndOfTrack(event);
           }).length;
           state.endedTracks += endedTracks;
-          if (state.endedTracks === this._json.tracks.length && this._scheduler.now() >= state.latest) {
+          if (state.endedTracks === this._json.tracks.length && start >= state.latest) {
             this._stop(state);
           }
         }
@@ -193,8 +200,8 @@
         key: "_stop",
         value: function _stop(state) {
           var resolve = state.resolve,
-            schedulerSubscription = state.schedulerSubscription;
-          schedulerSubscription === null || schedulerSubscription === void 0 ? void 0 : schedulerSubscription.unsubscribe();
+            stopScheduler = state.stopScheduler;
+          stopScheduler === null || stopScheduler === void 0 ? void 0 : stopScheduler();
           this._state = null;
           resolve();
         }
@@ -208,7 +215,7 @@
 
     function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
     function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
-    var createMidiPlayerFactory = function createMidiPlayerFactory(createMidiFileSlicer, scheduler) {
+    var createMidiPlayerFactory = function createMidiPlayerFactory(createMidiFileSlicer, startScheduler) {
       return function (options) {
         var midiFileSlicer = createMidiFileSlicer(options.json);
         return new MidiPlayer(_objectSpread(_objectSpread({
@@ -218,87 +225,50 @@
         }, options), {}, {
           encodeMidiMessage: encodeMidiMessage,
           midiFileSlicer: midiFileSlicer,
-          scheduler: scheduler
+          startScheduler: startScheduler
         }));
       };
     };
 
     var INTERVAL = 500;
-    var Scheduler = /*#__PURE__*/function () {
-      function Scheduler(_clearInterval, _performance, _setInterval) {
-        _classCallCheck(this, Scheduler);
-        this._clearInterval = _clearInterval;
-        this._performance = _performance;
-        this._setInterval = _setInterval;
-        this._intervalId = null;
-        this._nextTick = 0;
-        this._numberOfSubscribers = 0;
-        this._subject = new rxjs.Subject();
-      }
-      return _createClass(Scheduler, [{
-        key: "now",
-        value: function now() {
-          return this._performance.now();
-        }
-      }, {
-        key: "reset",
-        value: function reset(currentTime) {
-          this._nextTick = currentTime - INTERVAL;
-          this._subject.next({
-            end: this._nextTick + INTERVAL,
-            start: this._nextTick
-          });
-        }
-      }, {
-        key: "subscribe",
-        value: function subscribe(observer) {
-          var _this = this;
-          this._numberOfSubscribers += 1;
-          var currentTime = this._performance.now();
-          if (this._numberOfSubscribers === 1) {
-            this._start(currentTime);
+    var createStartScheduler = function createStartScheduler(clearInterval, performance, setInterval) {
+      return function (next) {
+        var start = performance.now();
+        var nextTick = start + INTERVAL;
+        var end = nextTick + INTERVAL;
+        var intervalId = setInterval(function () {
+          if (performance.now() >= nextTick) {
+            nextTick = end;
+            end += INTERVAL;
+            next({
+              end: end,
+              start: nextTick
+            });
           }
-          // tslint:disable-next-line:deprecation
-          var subscription = rxjs.merge(rxjs.of({
-            end: this._nextTick + INTERVAL,
-            start: currentTime
-          }), this._subject).subscribe(observer);
-          var unsubscribe = function unsubscribe() {
-            _this._numberOfSubscribers -= 1;
-            if (_this._numberOfSubscribers === 0) {
-              _this._stop();
-            }
-            return subscription.unsubscribe();
-          };
-          return {
-            unsubscribe: unsubscribe
-          };
-        }
-      }, {
-        key: "_start",
-        value: function _start(currentTime) {
-          var _this2 = this;
-          this._nextTick = currentTime + INTERVAL;
-          this._intervalId = this._setInterval(function () {
-            if (_this2._performance.now() >= _this2._nextTick) {
-              _this2._nextTick += INTERVAL;
-              _this2._subject.next({
-                end: _this2._nextTick + INTERVAL,
-                start: _this2._nextTick
-              });
-            }
-          }, INTERVAL / 10);
-        }
-      }, {
-        key: "_stop",
-        value: function _stop() {
-          if (this._intervalId !== null) {
-            this._clearInterval(this._intervalId);
+        }, INTERVAL / 10);
+        next({
+          end: end,
+          start: start
+        });
+        return {
+          now: function now() {
+            return performance.now();
+          },
+          reset: function reset() {
+            var start = performance.now();
+            nextTick = start - INTERVAL;
+            end = nextTick + INTERVAL;
+            next({
+              end: end,
+              start: nextTick
+            });
+          },
+          stop: function stop() {
+            clearInterval(intervalId);
           }
-          this._intervalId = null;
-        }
-      }]);
-    }();
+        };
+      };
+    };
 
     exports.MidiControllerMessage = void 0;
     (function (MidiControllerMessage) {
@@ -384,8 +354,7 @@
       MidiRegisteredParameterNumber[MidiRegisteredParameterNumber["MidiPolyphonicExpressionConfiguration"] = 6] = "MidiPolyphonicExpressionConfiguration";
     })(exports.MidiRegisteredParameterNumber || (exports.MidiRegisteredParameterNumber = {}));
 
-    var scheduler = new Scheduler(workerTimers.clearInterval, performance, workerTimers.setInterval);
-    var createMidiPlayer = createMidiPlayerFactory(createMidiFileSlicer, scheduler);
+    var createMidiPlayer = createMidiPlayerFactory(createMidiFileSlicer, createStartScheduler(workerTimers.clearInterval, performance, workerTimers.setInterval));
     var create = function create(options) {
       return createMidiPlayer(options);
     };

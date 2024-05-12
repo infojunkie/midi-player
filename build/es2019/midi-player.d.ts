@@ -6,9 +6,9 @@ export declare class MidiPlayer implements IMidiPlayer {
     private _json;
     private _midiFileSlicer;
     private _midiOutput;
-    private _scheduler;
+    private _startScheduler;
     private _state;
-    constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions);
+    constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, startScheduler }: IMidiPlayerOptions);
     get position(): number | null;
     get state(): PlayerState;
     pause(): void;

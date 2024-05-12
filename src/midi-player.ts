@@ -1,7 +1,7 @@
 import { MidiFileSlicer } from 'midi-file-slicer';
 import { IMidiFile, TMidiEvent } from 'midi-json-parser-worker';
+import { createStartScheduler } from './factories/start-scheduler';
 import { IMidiOutput, IMidiPlayer, IMidiPlayerOptions, IState } from './interfaces';
-import { Scheduler } from './scheduler';
 import { PlayerState } from './types/player-state';
 
 const ALL_SOUND_OFF_EVENT_DATA = Array.from({ length: 16 }, (_, index) => new Uint8Array([176 + index, 120, 0]));
@@ -17,22 +17,28 @@ export class MidiPlayer implements IMidiPlayer {
 
     private _midiOutput: IMidiOutput;
 
-    private _scheduler: Scheduler;
+    private _startScheduler: ReturnType<typeof createStartScheduler>;
 
     private _state: null | IState;
 
-    constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, scheduler }: IMidiPlayerOptions) {
+    constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, startScheduler }: IMidiPlayerOptions) {
         this._encodeMidiMessage = encodeMidiMessage;
         this._filterMidiMessage = filterMidiMessage;
         this._json = json;
         this._midiFileSlicer = midiFileSlicer;
         this._midiOutput = midiOutput;
-        this._scheduler = scheduler;
+        this._startScheduler = startScheduler;
         this._state = null;
     }
 
     public get position(): number | null {
-        return this._state === null ? null : this._scheduler.now() - this._state.offset;
+        if (this._state === null) {
+            return null;
+        }
+
+        const nowScheduler = this._state.nowScheduler as (() => number);
+
+        return nowScheduler() - this._state.offset;
     }
 
     public get state(): PlayerState {
@@ -85,9 +91,11 @@ export class MidiPlayer implements IMidiPlayer {
             state.paused = position - 1;
         }
         else if (this.state === PlayerState.Playing) {
-            const now = this._scheduler.now();
-            state.offset = now - position;
-            this._scheduler.reset(now);
+            const nowScheduler = state.nowScheduler as (() => number);
+
+            state.offset = nowScheduler() - position;
+
+            state.resetScheduler?.();
         }
     }
 
@@ -108,36 +116,36 @@ export class MidiPlayer implements IMidiPlayer {
     }
 
     private _pause(state: IState): void {
-        const { resolve, schedulerSubscription } = state;
+        const { resolve, stopScheduler } = state;
 
-        schedulerSubscription?.unsubscribe();
+        stopScheduler?.();
 
-        state.schedulerSubscription = null;
-        state.paused = this._scheduler.now() - state.offset;
+        const nowScheduler = state.nowScheduler as (() => number);
+        state.paused = nowScheduler() - state.offset;
 
         resolve();
     }
 
     private _promise(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const schedulerSubscription = this._scheduler.subscribe({
-                error: (err) => reject(err),
-                next: ({ end, start }) => {
-                    if (this._state === null) {
-                        this._state = { endedTracks: 0, offset: start, resolve, schedulerSubscription: null, latest: start, paused: null };
-                    }
-                    if (this._state.paused !== null) {
-                        this._state.offset = start - this._state.paused;
-                        this._state.paused = null;
-                    }
-                    this._schedule(start, end, this._state);
+        return new Promise((resolve) => {
+            const { stop: stopScheduler, reset: resetScheduler, now: nowScheduler } = this._startScheduler(({ end, start }) => {
+                if (this._state === null) {
+                    this._state = { endedTracks: 0, offset: start, resolve, stopScheduler: null, resetScheduler: null, nowScheduler: null, latest: start, paused: null };
                 }
+                if (this._state.paused !== null) {
+                    this._state.offset = start - this._state.paused;
+                    this._state.paused = null;
+                }
+
+                this._schedule(start, end, this._state);
             });
 
             if (this._state === null) {
-                schedulerSubscription.unsubscribe();
+                stopScheduler();
             } else {
-                this._state.schedulerSubscription = schedulerSubscription;
+                this._state.stopScheduler = stopScheduler;
+                this._state.resetScheduler = resetScheduler;
+                this._state.nowScheduler = nowScheduler
             }
         });
     }
@@ -156,15 +164,15 @@ export class MidiPlayer implements IMidiPlayer {
 
         state.endedTracks += endedTracks;
 
-        if (state.endedTracks === this._json.tracks.length && this._scheduler.now() >= state.latest) {
+        if (state.endedTracks === this._json.tracks.length && start >= state.latest) {
             this._stop(state);
         }
     }
 
     private _stop(state: IState): void {
-        const { resolve, schedulerSubscription } = state;
+        const { resolve, stopScheduler } = state;
 
-        schedulerSubscription?.unsubscribe();
+        stopScheduler?.();
 
         this._state = null;
 

@@ -3,11 +3,15 @@ export interface IState {
 
     latest: number;
 
+    nowScheduler: null | (() => number);
+
     offset: number;
 
     paused: null | number;
 
-    schedulerSubscription: null | { unsubscribe(): void };
+    resetScheduler: null | (() => void);
+
+    stopScheduler: null | (() => void);
 
     resolve(): void;
 }

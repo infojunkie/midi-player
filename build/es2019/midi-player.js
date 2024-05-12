@@ -1,17 +1,21 @@
 import { PlayerState } from './types/player-state';
 const ALL_SOUND_OFF_EVENT_DATA = Array.from({ length: 16 }, (_, index) => new Uint8Array([176 + index, 120, 0]));
 export class MidiPlayer {
-    constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, scheduler }) {
+    constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, startScheduler }) {
         this._encodeMidiMessage = encodeMidiMessage;
         this._filterMidiMessage = filterMidiMessage;
         this._json = json;
         this._midiFileSlicer = midiFileSlicer;
         this._midiOutput = midiOutput;
-        this._scheduler = scheduler;
+        this._startScheduler = startScheduler;
         this._state = null;
     }
     get position() {
-        return this._state === null ? null : this._scheduler.now() - this._state.offset;
+        if (this._state === null) {
+            return null;
+        }
+        const nowScheduler = this._state.nowScheduler;
+        return nowScheduler() - this._state.offset;
     }
     get state() {
         if (this._state === null) {
@@ -42,6 +46,7 @@ export class MidiPlayer {
         return this._promise();
     }
     seek(position) {
+        var _a;
         if (this.state === PlayerState.Stopped) {
             throw new Error('The player is currently stopped.');
         }
@@ -51,9 +56,9 @@ export class MidiPlayer {
             state.paused = position - 1;
         }
         else if (this.state === PlayerState.Playing) {
-            const now = this._scheduler.now();
-            state.offset = now - position;
-            this._scheduler.reset(now);
+            const nowScheduler = state.nowScheduler;
+            state.offset = nowScheduler() - position;
+            (_a = state.resetScheduler) === null || _a === void 0 ? void 0 : _a.call(state);
         }
     }
     stop() {
@@ -70,32 +75,31 @@ export class MidiPlayer {
         ALL_SOUND_OFF_EVENT_DATA.forEach((data) => this._midiOutput.send(data));
     }
     _pause(state) {
-        const { resolve, schedulerSubscription } = state;
-        schedulerSubscription === null || schedulerSubscription === void 0 ? void 0 : schedulerSubscription.unsubscribe();
-        state.schedulerSubscription = null;
-        state.paused = this._scheduler.now() - state.offset;
+        const { resolve, stopScheduler } = state;
+        stopScheduler === null || stopScheduler === void 0 ? void 0 : stopScheduler();
+        const nowScheduler = state.nowScheduler;
+        state.paused = nowScheduler() - state.offset;
         resolve();
     }
     _promise() {
-        return new Promise((resolve, reject) => {
-            const schedulerSubscription = this._scheduler.subscribe({
-                error: (err) => reject(err),
-                next: ({ end, start }) => {
-                    if (this._state === null) {
-                        this._state = { endedTracks: 0, offset: start, resolve, schedulerSubscription: null, latest: start, paused: null };
-                    }
-                    if (this._state.paused !== null) {
-                        this._state.offset = start - this._state.paused;
-                        this._state.paused = null;
-                    }
-                    this._schedule(start, end, this._state);
+        return new Promise((resolve) => {
+            const { stop: stopScheduler, reset: resetScheduler, now: nowScheduler } = this._startScheduler(({ end, start }) => {
+                if (this._state === null) {
+                    this._state = { endedTracks: 0, offset: start, resolve, stopScheduler: null, resetScheduler: null, nowScheduler: null, latest: start, paused: null };
                 }
+                if (this._state.paused !== null) {
+                    this._state.offset = start - this._state.paused;
+                    this._state.paused = null;
+                }
+                this._schedule(start, end, this._state);
             });
             if (this._state === null) {
-                schedulerSubscription.unsubscribe();
+                stopScheduler();
             }
             else {
-                this._state.schedulerSubscription = schedulerSubscription;
+                this._state.stopScheduler = stopScheduler;
+                this._state.resetScheduler = resetScheduler;
+                this._state.nowScheduler = nowScheduler;
             }
         });
     }
@@ -109,13 +113,13 @@ export class MidiPlayer {
         });
         const endedTracks = events.filter(({ event }) => MidiPlayer._isEndOfTrack(event)).length;
         state.endedTracks += endedTracks;
-        if (state.endedTracks === this._json.tracks.length && this._scheduler.now() >= state.latest) {
+        if (state.endedTracks === this._json.tracks.length && start >= state.latest) {
             this._stop(state);
         }
     }
     _stop(state) {
-        const { resolve, schedulerSubscription } = state;
-        schedulerSubscription === null || schedulerSubscription === void 0 ? void 0 : schedulerSubscription.unsubscribe();
+        const { resolve, stopScheduler } = state;
+        stopScheduler === null || stopScheduler === void 0 ? void 0 : stopScheduler();
         this._state = null;
         resolve();
     }
