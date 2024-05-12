@@ -74,6 +74,7 @@ export class MidiPlayer {
         (_b = (_a = this._midiOutput).clear) === null || _b === void 0 ? void 0 : _b.call(_a);
         ALL_SOUND_OFF_EVENT_DATA.forEach((data) => this._midiOutput.send(data));
     }
+    /* tslint:disable-next-line prefer-function-over-method */
     _pause(state) {
         const { resolve, stopScheduler } = state;
         stopScheduler === null || stopScheduler === void 0 ? void 0 : stopScheduler();

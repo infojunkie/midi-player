@@ -125,6 +125,7 @@
             return _this._midiOutput.send(data);
           });
         }
+        /* tslint:disable-next-line prefer-function-over-method */
       }, {
         key: "_pause",
         value: function _pause(state) {
