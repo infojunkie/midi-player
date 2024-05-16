@@ -21,6 +21,8 @@ export class MidiPlayer implements IMidiPlayer {
 
     private _state: null | IState;
 
+    private _velocity: number;
+
     constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, startScheduler }: IMidiPlayerOptions) {
         this._encodeMidiMessage = encodeMidiMessage;
         this._filterMidiMessage = filterMidiMessage;
@@ -29,16 +31,42 @@ export class MidiPlayer implements IMidiPlayer {
         this._midiOutput = midiOutput;
         this._startScheduler = startScheduler;
         this._state = null;
+        this._velocity = 1;
     }
 
     public get position(): number | null {
-        if (this._state === null) {
+        if (this.state === PlayerState.Stopped) {
             return null;
         }
 
-        const nowScheduler = this._state.nowScheduler as (() => number);
+        const state = this._state as IState;
+        if (state.paused !== null) {
+            return state.paused;
+        }
 
-        return nowScheduler() - this._state.offset;
+        const nowScheduler = state.nowScheduler as (() => number);
+
+        return nowScheduler() - state.offset;
+    }
+
+    public set position(position: number) {
+        if (this.state === PlayerState.Stopped) {
+            throw new Error('The player is currently stopped.');
+        }
+
+        this._clear();
+
+        const state = this._state as IState;
+        if (this.state === PlayerState.Paused) {
+            state.paused = position - 1;
+        }
+        else if (this.state === PlayerState.Playing) {
+            const nowScheduler = state.nowScheduler as (() => number);
+
+            state.offset = nowScheduler() - position;
+
+            state.resetScheduler?.();
+        }
     }
 
     public get state(): PlayerState {
@@ -51,6 +79,15 @@ export class MidiPlayer implements IMidiPlayer {
         }
 
         return PlayerState.Playing;
+    }
+
+    public get velocity(): number {
+        return this._velocity;
+    }
+
+    public set velocity(velocity: number) {
+        // TODO: Handle zero velocity.
+        this._velocity = velocity;
     }
 
     public pause(): void {
@@ -77,26 +114,6 @@ export class MidiPlayer implements IMidiPlayer {
         }
 
         return this._promise();
-    }
-
-    public seek(position: number): void {
-        if (this.state === PlayerState.Stopped) {
-            throw new Error('The player is currently stopped.');
-        }
-
-        this._clear();
-
-        const state = this._state as IState;
-        if (this.state === PlayerState.Paused) {
-            state.paused = position - 1;
-        }
-        else if (this.state === PlayerState.Playing) {
-            const nowScheduler = state.nowScheduler as (() => number);
-
-            state.offset = nowScheduler() - position;
-
-            state.resetScheduler?.();
-        }
     }
 
     public stop(): void {

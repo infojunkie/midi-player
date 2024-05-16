@@ -42,15 +42,35 @@
         this._midiOutput = midiOutput;
         this._startScheduler = startScheduler;
         this._state = null;
+        this._velocity = 1;
       }
       return _createClass(MidiPlayer, [{
         key: "position",
         get: function get() {
-          if (this._state === null) {
+          if (this.state === exports.PlayerState.Stopped) {
             return null;
           }
-          var nowScheduler = this._state.nowScheduler;
-          return nowScheduler() - this._state.offset;
+          var state = this._state;
+          if (state.paused !== null) {
+            return state.paused;
+          }
+          var nowScheduler = state.nowScheduler;
+          return nowScheduler() - state.offset;
+        },
+        set: function set(position) {
+          var _a;
+          if (this.state === exports.PlayerState.Stopped) {
+            throw new Error('The player is currently stopped.');
+          }
+          this._clear();
+          var state = this._state;
+          if (this.state === exports.PlayerState.Paused) {
+            state.paused = position - 1;
+          } else if (this.state === exports.PlayerState.Playing) {
+            var nowScheduler = state.nowScheduler;
+            state.offset = nowScheduler() - position;
+            (_a = state.resetScheduler) === null || _a === void 0 ? void 0 : _a.call(state);
+          }
         }
       }, {
         key: "state",
@@ -62,6 +82,15 @@
             return exports.PlayerState.Paused;
           }
           return exports.PlayerState.Playing;
+        }
+      }, {
+        key: "velocity",
+        get: function get() {
+          return this._velocity;
+        },
+        set: function set(velocity) {
+          // TODO: Handle zero velocity.
+          this._velocity = velocity;
         }
       }, {
         key: "pause",
@@ -87,23 +116,6 @@
             throw new Error('The player is not currently paused.');
           }
           return this._promise();
-        }
-      }, {
-        key: "seek",
-        value: function seek(position) {
-          var _a;
-          if (this.state === exports.PlayerState.Stopped) {
-            throw new Error('The player is currently stopped.');
-          }
-          this._clear();
-          var state = this._state;
-          if (this.state === exports.PlayerState.Paused) {
-            state.paused = position - 1;
-          } else if (this.state === exports.PlayerState.Playing) {
-            var nowScheduler = state.nowScheduler;
-            state.offset = nowScheduler() - position;
-            (_a = state.resetScheduler) === null || _a === void 0 ? void 0 : _a.call(state);
-          }
         }
       }, {
         key: "stop",

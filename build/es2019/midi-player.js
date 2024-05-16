@@ -9,13 +9,34 @@ export class MidiPlayer {
         this._midiOutput = midiOutput;
         this._startScheduler = startScheduler;
         this._state = null;
+        this._velocity = 1;
     }
     get position() {
-        if (this._state === null) {
+        if (this.state === PlayerState.Stopped) {
             return null;
         }
-        const nowScheduler = this._state.nowScheduler;
-        return nowScheduler() - this._state.offset;
+        const state = this._state;
+        if (state.paused !== null) {
+            return state.paused;
+        }
+        const nowScheduler = state.nowScheduler;
+        return nowScheduler() - state.offset;
+    }
+    set position(position) {
+        var _a;
+        if (this.state === PlayerState.Stopped) {
+            throw new Error('The player is currently stopped.');
+        }
+        this._clear();
+        const state = this._state;
+        if (this.state === PlayerState.Paused) {
+            state.paused = position - 1;
+        }
+        else if (this.state === PlayerState.Playing) {
+            const nowScheduler = state.nowScheduler;
+            state.offset = nowScheduler() - position;
+            (_a = state.resetScheduler) === null || _a === void 0 ? void 0 : _a.call(state);
+        }
     }
     get state() {
         if (this._state === null) {
@@ -25,6 +46,13 @@ export class MidiPlayer {
             return PlayerState.Paused;
         }
         return PlayerState.Playing;
+    }
+    get velocity() {
+        return this._velocity;
+    }
+    set velocity(velocity) {
+        // TODO: Handle zero velocity.
+        this._velocity = velocity;
     }
     pause() {
         if (this.state !== PlayerState.Playing) {
@@ -44,22 +72,6 @@ export class MidiPlayer {
             throw new Error('The player is not currently paused.');
         }
         return this._promise();
-    }
-    seek(position) {
-        var _a;
-        if (this.state === PlayerState.Stopped) {
-            throw new Error('The player is currently stopped.');
-        }
-        this._clear();
-        const state = this._state;
-        if (this.state === PlayerState.Paused) {
-            state.paused = position - 1;
-        }
-        else if (this.state === PlayerState.Playing) {
-            const nowScheduler = state.nowScheduler;
-            state.offset = nowScheduler() - position;
-            (_a = state.resetScheduler) === null || _a === void 0 ? void 0 : _a.call(state);
-        }
     }
     stop() {
         if (this.state === PlayerState.Stopped) {
