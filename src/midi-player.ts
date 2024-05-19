@@ -34,36 +34,50 @@ export class MidiPlayer implements IMidiPlayer {
         this._velocity = 1;
     }
 
-    public get position(): number | null {
+    public get position(): number | undefined {
+        // STOPPED: Position is undefined.
         if (this.state === PlayerState.Stopped) {
-            return null;
+            return undefined;
         }
 
         const state = this._state as IState;
+        // PAUSED: Position of pause offset in real-time space.
         if (state.paused !== null) {
-            return state.paused;
+            return state.paused * this._velocity;
         }
 
+        // PLAYING: Currrent offset in real-time space.
         const nowScheduler = state.nowScheduler as (() => number);
 
-        return nowScheduler() - state.offset;
+        return (nowScheduler() - state.offset) * this._velocity;
     }
 
     public set position(position: number) {
+        // STOPPED: Exception.
         if (this.state === PlayerState.Stopped) {
             throw new Error('The player is currently stopped.');
         }
 
+        // No change, do nothing.
+        if (Math.abs(position - (this.position as number)) < Number.EPSILON) {
+            return;
+        }
+
+        // Whatever comes next, stop current notes.
         this._clear();
 
         const state = this._state as IState;
+        // PAUSED: Reposition pause offset in velocity space.
+        // Decrement by small value to ensure current events are not missed.
         if (this.state === PlayerState.Paused) {
-            state.paused = position - 1;
+            state.paused = position / this._velocity - 1;
         }
+        // PLAYING: Reposition playing offset in velocity space.
+        // Reset the scheduler instantaneously.
         else if (this.state === PlayerState.Playing) {
             const nowScheduler = state.nowScheduler as (() => number);
 
-            state.offset = nowScheduler() - position;
+            state.offset = nowScheduler() - position / this._velocity;
 
             state.resetScheduler?.();
         }
@@ -81,13 +95,59 @@ export class MidiPlayer implements IMidiPlayer {
         return PlayerState.Playing;
     }
 
-    public get velocity(): number {
+    public get velocity(): number | undefined {
+        // STOPPED: Velocity is undefined.
+        if (this.state === PlayerState.Stopped) {
+            return undefined;
+        }
+
+        // PAUSED: Velocity is 0.
+        if (this.state === PlayerState.Paused) {
+            return 0;
+        }
+
         return this._velocity;
     }
 
     public set velocity(velocity: number) {
-        // TODO: Handle zero velocity.
-        this._velocity = velocity;
+        // STOPPED: Exception.
+        if (this.state === PlayerState.Stopped) {
+            throw new Error('The player is currently stopped.');
+        }
+
+        // No change, do nothing.
+        if (Math.abs(velocity - this._velocity) < Number.EPSILON) {
+            return;
+        }
+
+        // Whatever comes next, stop current notes.
+        this._clear();
+
+        const state = this._state as IState;
+        // PAUSED: If v > 0, reposition paused offset in new velocity space.
+        if (this.state === PlayerState.Paused) {
+            if (Math.abs(velocity) > Number.EPSILON) {
+                state.paused = (this.position as number) / velocity;
+
+                this._velocity = velocity;
+            }
+        }
+        // PLAYING: If v > 0, reposition playing offset in new velocity space.
+        //          If v == 0, pause (without saving v to remember current velocity).
+        else if (this.state === PlayerState.Playing) {
+            if (Math.abs(velocity) > Number.EPSILON) {
+                const nowScheduler = state.nowScheduler as (() => number);
+
+                state.offset = nowScheduler() - (this.position as number) / velocity;
+
+                this._velocity = velocity;
+
+                state.resetScheduler?.();
+            }
+            else {
+                this._pause(this._state as IState);
+            }
+        }
     }
 
     public pause(): void {
@@ -100,18 +160,24 @@ export class MidiPlayer implements IMidiPlayer {
         this._pause(this._state as IState);
     }
 
-    public play(): Promise<void> {
+    public play(velocity = 1): Promise<void> {
         if (this.state !== PlayerState.Stopped) {
             throw new Error('The player is not currently stopped.');
         }
 
+        // Set internal variable only because we are currently stopped.
+        this._velocity = velocity;
+
         return this._promise();
     }
 
-    public resume(): Promise<void> {
+    public resume(velocity = 1): Promise<void> {
         if (this.state !== PlayerState.Paused) {
             throw new Error('The player is not currently paused.');
         }
+
+        // Set public variable to adjust internal state.
+        this.velocity = velocity;
 
         return this._promise();
     }
@@ -169,13 +235,17 @@ export class MidiPlayer implements IMidiPlayer {
     }
 
     private _schedule(start: number, end: number, state: IState): void {
-        const events = this._midiFileSlicer.slice(start - state.offset, end - state.offset);
+        const events = this._midiFileSlicer.slice(
+            (start - state.offset) * this._velocity,
+            (end - state.offset) * this._velocity,
+        );
 
         events
             .filter(({ event }) => this._filterMidiMessage(event))
             .forEach(({ event, time }) => {
-                this._midiOutput.send(this._encodeMidiMessage(event), start + time);
-                state.latest = Math.max(state.latest, start + time);
+                const timestamp = start + time / this._velocity;
+                this._midiOutput.send(this._encodeMidiMessage(event), timestamp);
+                state.latest = Math.max(state.latest, timestamp);
             });
 
         const endedTracks = events.filter(({ event }) => MidiPlayer._isEndOfTrack(event)).length;

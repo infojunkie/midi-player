@@ -47,28 +47,42 @@
       return _createClass(MidiPlayer, [{
         key: "position",
         get: function get() {
+          // STOPPED: Position is undefined.
           if (this.state === exports.PlayerState.Stopped) {
-            return null;
+            return undefined;
           }
           var state = this._state;
+          // PAUSED: Position of pause offset in real-time space.
           if (state.paused !== null) {
-            return state.paused;
+            return state.paused * this._velocity;
           }
+          // PLAYING: Currrent offset in real-time space.
           var nowScheduler = state.nowScheduler;
-          return nowScheduler() - state.offset;
+          return (nowScheduler() - state.offset) * this._velocity;
         },
         set: function set(position) {
           var _a;
+          // STOPPED: Exception.
           if (this.state === exports.PlayerState.Stopped) {
             throw new Error('The player is currently stopped.');
           }
+          // No change, do nothing.
+          if (Math.abs(position - this.position) < Number.EPSILON) {
+            return;
+          }
+          // Whatever comes next, stop current notes.
           this._clear();
           var state = this._state;
+          // PAUSED: Reposition pause offset in velocity space.
+          // Decrement by small value to ensure current events are not missed.
           if (this.state === exports.PlayerState.Paused) {
-            state.paused = position - 1;
-          } else if (this.state === exports.PlayerState.Playing) {
+            state.paused = position / this._velocity - 1;
+          }
+          // PLAYING: Reposition playing offset in velocity space.
+          // Reset the scheduler instantaneously.
+          else if (this.state === exports.PlayerState.Playing) {
             var nowScheduler = state.nowScheduler;
-            state.offset = nowScheduler() - position;
+            state.offset = nowScheduler() - position / this._velocity;
             (_a = state.resetScheduler) === null || _a === void 0 ? void 0 : _a.call(state);
           }
         }
@@ -86,11 +100,48 @@
       }, {
         key: "velocity",
         get: function get() {
+          // STOPPED: Velocity is undefined.
+          if (this.state === exports.PlayerState.Stopped) {
+            return undefined;
+          }
+          // PAUSED: Velocity is 0.
+          if (this.state === exports.PlayerState.Paused) {
+            return 0;
+          }
           return this._velocity;
         },
         set: function set(velocity) {
-          // TODO: Handle zero velocity.
-          this._velocity = velocity;
+          var _a;
+          // STOPPED: Exception.
+          if (this.state === exports.PlayerState.Stopped) {
+            throw new Error('The player is currently stopped.');
+          }
+          // No change, do nothing.
+          if (Math.abs(velocity - this._velocity) < Number.EPSILON) {
+            return;
+          }
+          // Whatever comes next, stop current notes.
+          this._clear();
+          var state = this._state;
+          // PAUSED: If v > 0, reposition paused offset in new velocity space.
+          if (this.state === exports.PlayerState.Paused) {
+            if (Math.abs(velocity) > Number.EPSILON) {
+              state.paused = this.position / velocity;
+              this._velocity = velocity;
+            }
+          }
+          // PLAYING: If v > 0, reposition playing offset in new velocity space.
+          //          If v == 0, pause (without saving v to remember current velocity).
+          else if (this.state === exports.PlayerState.Playing) {
+            if (Math.abs(velocity) > Number.EPSILON) {
+              var nowScheduler = state.nowScheduler;
+              state.offset = nowScheduler() - this.position / velocity;
+              this._velocity = velocity;
+              (_a = state.resetScheduler) === null || _a === void 0 ? void 0 : _a.call(state);
+            } else {
+              this._pause(this._state);
+            }
+          }
         }
       }, {
         key: "pause",
@@ -104,17 +155,23 @@
       }, {
         key: "play",
         value: function play() {
+          var velocity = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
           if (this.state !== exports.PlayerState.Stopped) {
             throw new Error('The player is not currently stopped.');
           }
+          // Set internal variable only because we are currently stopped.
+          this._velocity = velocity;
           return this._promise();
         }
       }, {
         key: "resume",
         value: function resume() {
+          var velocity = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
           if (this.state !== exports.PlayerState.Paused) {
             throw new Error('The player is not currently paused.');
           }
+          // Set public variable to adjust internal state.
+          this.velocity = velocity;
           return this._promise();
         }
       }, {
@@ -190,15 +247,16 @@
         key: "_schedule",
         value: function _schedule(start, end, state) {
           var _this3 = this;
-          var events = this._midiFileSlicer.slice(start - state.offset, end - state.offset);
+          var events = this._midiFileSlicer.slice((start - state.offset) * this._velocity, (end - state.offset) * this._velocity);
           events.filter(function (_ref3) {
             var event = _ref3.event;
             return _this3._filterMidiMessage(event);
           }).forEach(function (_ref4) {
             var event = _ref4.event,
               time = _ref4.time;
-            _this3._midiOutput.send(_this3._encodeMidiMessage(event), start + time);
-            state.latest = Math.max(state.latest, start + time);
+            var timestamp = start + time / _this3._velocity;
+            _this3._midiOutput.send(_this3._encodeMidiMessage(event), timestamp);
+            state.latest = Math.max(state.latest, timestamp);
           });
           var endedTracks = events.filter(function (_ref5) {
             var event = _ref5.event;
