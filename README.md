@@ -10,11 +10,12 @@ This is a fork of the original [`midi-player` module by Chris Guttandin](https:/
 Here are the features added in this fork:
 - ~~Add support for [MIDIOutput.clear()](https://developer.mozilla.org/en-US/docs/Web/API/MIDIOutput/clear) for browsers that implement it~~ MERGED :tada:
 - ~~Add method `IMidiPlayer.stop()`~~ MERGED :tada:
-- Add read-only attribute `IMidiPlayer.state` (stopped, playing, paused)
+- ~~Send [MIDI Control Change (CC) message "All Sound Off"](https://anotherproducer.com/online-tools-for-musicians/midi-cc-list/) on player pause/stop~~ MERGED :tada:
 - Add methods `IMidiPlayer.pause()`, `IMidiPlayer.resume()` WIP at https://github.com/chrisguttandin/midi-player/issues/361 :construction:
+- Patch the scheduler to wait for the occurrence  of the last event before resolving the `play()` promise -- WIP at https://github.com/chrisguttandin/midi-player/issues/362 :construction:
+- Add read-only attribute `IMidiPlayer.state` (stopped, playing, paused)
 - Add read-write attribute `IMidiPlayer.position`
 - Add read-write attribute `iMidiPlayer.velocity`
-- ~~Send [MIDI Control Change (CC) message "All Sound Off"](https://anotherproducer.com/online-tools-for-musicians/midi-cc-list/) on player pause/stop~~ MERGED :tada:
 
 The version numbering used in this fork is `<major>.<minor>.<patch>-<upstream-major>.<upstream-minor>.<upstream-patch>`.
 
