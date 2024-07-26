@@ -37,12 +37,12 @@
         _classCallCheck(this, MidiPlayer);
         this._encodeMidiMessage = encodeMidiMessage;
         this._filterMidiMessage = filterMidiMessage;
-        this._json = json;
         this._midiFileSlicer = midiFileSlicer;
         this._midiOutput = midiOutput;
         this._startScheduler = startScheduler;
         this._state = null;
         this._velocity = 1;
+        this._latest = MidiPlayer._getMaxTimestamp(json);
       }
       return _createClass(MidiPlayer, [{
         key: "position",
@@ -154,24 +154,26 @@
         }
       }, {
         key: "play",
-        value: function play() {
-          var velocity = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
+        value: function play(velocity) {
           if (this.state !== exports.PlayerState.Stopped) {
             throw new Error('The player is not currently stopped.');
           }
-          // Set internal variable only because we are currently stopped.
-          this._velocity = velocity;
+          // Here, we set the internal variable because we're already stopped and no further state adjustment is needed.
+          if (typeof velocity !== 'undefined') {
+            this._velocity = velocity;
+          }
           return this._promise();
         }
       }, {
         key: "resume",
-        value: function resume() {
-          var velocity = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
+        value: function resume(velocity) {
           if (this.state !== exports.PlayerState.Paused) {
             throw new Error('The player is not currently paused.');
           }
-          // Set public variable to adjust internal state.
-          this.velocity = velocity;
+          // Here, we set the public variable to adjust internal state.
+          if (typeof velocity !== 'undefined') {
+            this.velocity = velocity;
+          }
           return this._promise();
         }
       }, {
@@ -215,13 +217,11 @@
                   start = _ref2.start;
                 if (_this2._state === null) {
                   _this2._state = {
-                    endedTracks: 0,
                     offset: start,
                     resolve: resolve,
                     stopScheduler: null,
                     resetScheduler: null,
                     nowScheduler: null,
-                    latest: start,
                     paused: null
                   };
                 }
@@ -254,16 +254,9 @@
           }).forEach(function (_ref4) {
             var event = _ref4.event,
               time = _ref4.time;
-            var timestamp = start + time / _this3._velocity;
-            _this3._midiOutput.send(_this3._encodeMidiMessage(event), timestamp);
-            state.latest = Math.max(state.latest, timestamp);
+            return _this3._midiOutput.send(_this3._encodeMidiMessage(event), start + time / _this3._velocity);
           });
-          var endedTracks = events.filter(function (_ref5) {
-            var event = _ref5.event;
-            return MidiPlayer._isEndOfTrack(event);
-          }).length;
-          state.endedTracks += endedTracks;
-          if (state.endedTracks === this._json.tracks.length && start >= state.latest) {
+          if ((start - state.offset) * this._velocity >= this._latest) {
             this._stop(state);
           }
         }
@@ -277,9 +270,49 @@
           resolve();
         }
       }], [{
-        key: "_isEndOfTrack",
-        value: function _isEndOfTrack(event) {
-          return 'endOfTrack' in event;
+        key: "_getMaxTimestamp",
+        value: function _getMaxTimestamp(json) {
+          // Collect all tempo changes.
+          var tempoChanges = [];
+          json.tracks.forEach(function (events) {
+            var trackTime = 0;
+            events.forEach(function (event) {
+              trackTime += event.delta;
+              if ('setTempo' in event) {
+                tempoChanges.push({
+                  time: trackTime,
+                  tempo: event.setTempo.microsecondsPerQuarter
+                });
+              }
+            });
+          });
+          // Sort tempo changes by time.
+          tempoChanges.sort(function (a, b) {
+            return a.time - b.time;
+          });
+          // Function to get the current tempo at a given time.
+          function getTempoAtTime(time) {
+            for (var i = tempoChanges.length - 1; i >= 0; i -= 1) {
+              if (time >= tempoChanges[i].time) {
+                return tempoChanges[i].tempo;
+              }
+            }
+            return 500000; // Default tempo if no changes before this time
+          }
+          // Calculate the maximum timestamp considering all tracks and tempo changes.
+          var maxTimestamp = 0;
+          json.tracks.forEach(function (events) {
+            var trackTime = 0;
+            events.forEach(function (event) {
+              trackTime += event.delta;
+              var currentTempo = getTempoAtTime(trackTime);
+              var currentTime = trackTime * (currentTempo / 1000) / json.division;
+              if (currentTime > maxTimestamp) {
+                maxTimestamp = currentTime;
+              }
+            });
+          });
+          return maxTimestamp;
         }
       }]);
     }();
@@ -326,8 +359,7 @@
             return performance.now();
           },
           reset: function reset() {
-            var start = performance.now();
-            nextTick = start - INTERVAL;
+            nextTick = performance.now() - INTERVAL;
             end = nextTick + INTERVAL;
             next({
               end: end,

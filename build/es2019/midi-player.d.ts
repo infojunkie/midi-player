@@ -3,7 +3,7 @@ import { PlayerState } from './types/player-state';
 export declare class MidiPlayer implements IMidiPlayer {
     private _encodeMidiMessage;
     private _filterMidiMessage;
-    private _json;
+    private _latest;
     private _midiFileSlicer;
     private _midiOutput;
     private _startScheduler;
@@ -24,6 +24,6 @@ export declare class MidiPlayer implements IMidiPlayer {
     private _promise;
     private _schedule;
     private _stop;
-    private static _isEndOfTrack;
+    private static _getMaxTimestamp;
 }
 //# sourceMappingURL=midi-player.d.ts.map

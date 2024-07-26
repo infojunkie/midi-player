@@ -4,12 +4,12 @@ export class MidiPlayer {
     constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, startScheduler }) {
         this._encodeMidiMessage = encodeMidiMessage;
         this._filterMidiMessage = filterMidiMessage;
-        this._json = json;
         this._midiFileSlicer = midiFileSlicer;
         this._midiOutput = midiOutput;
         this._startScheduler = startScheduler;
         this._state = null;
         this._velocity = 1;
+        this._latest = MidiPlayer._getMaxTimestamp(json);
     }
     get position() {
         // STOPPED: Position is undefined.
@@ -112,20 +112,24 @@ export class MidiPlayer {
         this._clear();
         this._pause(this._state);
     }
-    play(velocity = 1) {
+    play(velocity) {
         if (this.state !== PlayerState.Stopped) {
             throw new Error('The player is not currently stopped.');
         }
-        // Set internal variable only because we are currently stopped.
-        this._velocity = velocity;
+        // Here, we set the internal variable because we're already stopped and no further state adjustment is needed.
+        if (typeof velocity !== 'undefined') {
+            this._velocity = velocity;
+        }
         return this._promise();
     }
-    resume(velocity = 1) {
+    resume(velocity) {
         if (this.state !== PlayerState.Paused) {
             throw new Error('The player is not currently paused.');
         }
-        // Set public variable to adjust internal state.
-        this.velocity = velocity;
+        // Here, we set the public variable to adjust internal state.
+        if (typeof velocity !== 'undefined') {
+            this.velocity = velocity;
+        }
         return this._promise();
     }
     stop() {
@@ -153,7 +157,7 @@ export class MidiPlayer {
         return new Promise((resolve) => {
             const { stop: stopScheduler, reset: resetScheduler, now: nowScheduler } = this._startScheduler(({ end, start }) => {
                 if (this._state === null) {
-                    this._state = { endedTracks: 0, offset: start, resolve, stopScheduler: null, resetScheduler: null, nowScheduler: null, latest: start, paused: null };
+                    this._state = { offset: start, resolve, stopScheduler: null, resetScheduler: null, nowScheduler: null, paused: null };
                 }
                 if (this._state.paused !== null) {
                     this._state.offset = start - this._state.paused;
@@ -175,14 +179,8 @@ export class MidiPlayer {
         const events = this._midiFileSlicer.slice((start - state.offset) * this._velocity, (end - state.offset) * this._velocity);
         events
             .filter(({ event }) => this._filterMidiMessage(event))
-            .forEach(({ event, time }) => {
-            const timestamp = start + time / this._velocity;
-            this._midiOutput.send(this._encodeMidiMessage(event), timestamp);
-            state.latest = Math.max(state.latest, timestamp);
-        });
-        const endedTracks = events.filter(({ event }) => MidiPlayer._isEndOfTrack(event)).length;
-        state.endedTracks += endedTracks;
-        if (state.endedTracks === this._json.tracks.length && start >= state.latest) {
+            .forEach(({ event, time }) => this._midiOutput.send(this._encodeMidiMessage(event), start + time / this._velocity));
+        if ((start - state.offset) * this._velocity >= this._latest) {
             this._stop(state);
         }
     }
@@ -192,8 +190,43 @@ export class MidiPlayer {
         this._state = null;
         resolve();
     }
-    static _isEndOfTrack(event) {
-        return 'endOfTrack' in event;
+    static _getMaxTimestamp(json) {
+        // Collect all tempo changes.
+        const tempoChanges = [];
+        json.tracks.forEach(events => {
+            let trackTime = 0;
+            events.forEach((event) => {
+                trackTime += event.delta;
+                if ('setTempo' in event) {
+                    tempoChanges.push({ time: trackTime, tempo: event.setTempo.microsecondsPerQuarter });
+                }
+            });
+        });
+        // Sort tempo changes by time.
+        tempoChanges.sort((a, b) => a.time - b.time);
+        // Function to get the current tempo at a given time.
+        function getTempoAtTime(time) {
+            for (let i = tempoChanges.length - 1; i >= 0; i -= 1) {
+                if (time >= tempoChanges[i].time) {
+                    return tempoChanges[i].tempo;
+                }
+            }
+            return 500000; // Default tempo if no changes before this time
+        }
+        // Calculate the maximum timestamp considering all tracks and tempo changes.
+        let maxTimestamp = 0;
+        json.tracks.forEach(events => {
+            let trackTime = 0;
+            events.forEach(event => {
+                trackTime += event.delta;
+                const currentTempo = getTempoAtTime(trackTime);
+                const currentTime = trackTime * (currentTempo / 1000) / json.division;
+                if (currentTime > maxTimestamp) {
+                    maxTimestamp = currentTime;
+                }
+            });
+        });
+        return maxTimestamp;
     }
 }
 //# sourceMappingURL=midi-player.js.map

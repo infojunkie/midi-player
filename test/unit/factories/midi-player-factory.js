@@ -19,7 +19,7 @@ describe('createMidiPlayerFactory()', () => {
 
     describe('midiPlayerFactory()', () => {
         it('should create a new midiFileSlicer', () => {
-            const json = 'a fake midi representation';
+            const json = { division: 1, tracks: [] };
 
             midiPlayerFactory({ json });
 

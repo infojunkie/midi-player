@@ -16,8 +16,7 @@ export const createStartScheduler = (clearInterval, performance, setInterval) =>
             return performance.now();
         },
         reset: () => {
-            const start = performance.now();
-            nextTick = start - INTERVAL;
+            nextTick = performance.now() - INTERVAL;
             end = nextTick + INTERVAL;
             next({ end, start: nextTick });
         },

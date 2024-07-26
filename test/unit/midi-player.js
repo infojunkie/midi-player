@@ -14,6 +14,8 @@ describe('MidiPlayer', () => {
     let sequence;
     let startScheduler;
 
+    const getMaxTimestamp = stub(MidiPlayer, '_getMaxTimestamp');
+
     beforeEach(() => {
         filterMidiMessage = stub();
         encodeMidiMessage = stub();
@@ -23,6 +25,8 @@ describe('MidiPlayer', () => {
         };
 
         startScheduler = createStartScheduler(clearInterval, performanceMock, setInterval);
+
+        getMaxTimestamp.returns(0);
 
         midiPlayer = new MidiPlayer({
             encodeMidiMessage,
@@ -146,7 +150,16 @@ describe('MidiPlayer', () => {
                 };
 
                 midiFileSlicerMock.slice.returns([{ event, time: 500 }]);
+                getMaxTimestamp.returns(1000);
 
+                midiPlayer = new MidiPlayer({
+                    encodeMidiMessage,
+                    filterMidiMessage,
+                    json,
+                    midiFileSlicer: midiFileSlicerMock,
+                    midiOutput: midiOutputMock,
+                    startScheduler
+                });
                 midiPlayer.play().then(then);
 
                 midiOutputMock.clear.resetHistory();
