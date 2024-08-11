@@ -42,6 +42,7 @@
         this._startScheduler = startScheduler;
         this._state = null;
         this._velocity = 1;
+        this._repeat = 1;
         this._latest = MidiPlayer._getMaxTimestamp(json);
       }
       return _createClass(MidiPlayer, [{
@@ -154,7 +155,7 @@
         }
       }, {
         key: "play",
-        value: function play(velocity) {
+        value: function play(velocity, repeat) {
           if (this.state !== exports.PlayerState.Stopped) {
             throw new Error('The player is not currently stopped.');
           }
@@ -162,17 +163,23 @@
           if (typeof velocity !== 'undefined') {
             this._velocity = velocity;
           }
+          if (typeof repeat !== 'undefined') {
+            this._repeat = repeat;
+          }
           return this._promise();
         }
       }, {
         key: "resume",
-        value: function resume(velocity) {
+        value: function resume(velocity, repeat) {
           if (this.state !== exports.PlayerState.Paused) {
             throw new Error('The player is not currently paused.');
           }
           // Here, we set the public variable to adjust internal state.
           if (typeof velocity !== 'undefined') {
             this.velocity = velocity;
+          }
+          if (typeof repeat !== 'undefined') {
+            this._repeat = repeat;
           }
           return this._promise();
         }
@@ -217,17 +224,24 @@
                   start = _ref2.start;
                 if (_this2._state === null) {
                   _this2._state = {
-                    offset: start,
-                    resolve: resolve,
-                    stopScheduler: null,
-                    resetScheduler: null,
+                    next: null,
                     nowScheduler: null,
-                    paused: null
+                    offset: start,
+                    paused: null,
+                    repeat: _this2._repeat,
+                    resetScheduler: null,
+                    resolve: resolve,
+                    stopScheduler: null
                   };
                 }
                 if (_this2._state.paused !== null) {
                   _this2._state.offset = start - _this2._state.paused;
                   _this2._state.paused = null;
+                  _this2._state.resolve = resolve;
+                }
+                if (_this2._state.next !== null) {
+                  _this2._state.offset = _this2._state.next;
+                  _this2._state.next = null;
                 }
                 _this2._schedule(start, end, _this2._state);
               }),
@@ -256,8 +270,32 @@
               time = _ref4.time;
             return _this3._midiOutput.send(_this3._encodeMidiMessage(event), start + time / _this3._velocity);
           });
-          if ((start - state.offset) * this._velocity >= this._latest) {
-            this._stop(state);
+          // Check if we're at the end of the file.
+          var wrapping = (end - state.offset) * this._velocity - this._latest;
+          if (state.repeat === 0) {
+            // If we're no longer looping, stop the player.
+            if (state.nowScheduler !== null && (state.nowScheduler() - state.offset) * this._velocity >= this._latest) {
+              this._stop(state);
+            }
+          } else if (wrapping >= 0) {
+            // Decrement the loop counter.
+            if (state.repeat > 0) {
+              state.repeat -= 1;
+            }
+            // If we're still looping, schedule the starting events from the next cycle.
+            // Otherwise, wait until next cycle to stop the player.
+            if (state.repeat !== 0) {
+              var events2 = this._midiFileSlicer.slice(0, wrapping);
+              events2.filter(function (_ref5) {
+                var event = _ref5.event;
+                return _this3._filterMidiMessage(event);
+              }).forEach(function (_ref6) {
+                var event = _ref6.event,
+                  time = _ref6.time;
+                return _this3._midiOutput.send(_this3._encodeMidiMessage(event), end + (time - wrapping) / _this3._velocity);
+              });
+              state.next = state.offset + this._latest / this._velocity;
+            }
           }
         }
       }, {
@@ -338,7 +376,7 @@
     var createStartScheduler = function createStartScheduler(clearInterval, performance, setInterval) {
       return function (next) {
         var start = performance.now();
-        var nextTick = start + INTERVAL;
+        var nextTick = start;
         var end = nextTick + INTERVAL;
         var intervalId = setInterval(function () {
           if (performance.now() >= nextTick) {

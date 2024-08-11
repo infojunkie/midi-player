@@ -9,6 +9,7 @@ export class MidiPlayer {
         this._startScheduler = startScheduler;
         this._state = null;
         this._velocity = 1;
+        this._repeat = 1;
         this._latest = MidiPlayer._getMaxTimestamp(json);
     }
     get position() {
@@ -112,7 +113,7 @@ export class MidiPlayer {
         this._clear();
         this._pause(this._state);
     }
-    play(velocity) {
+    play(velocity, repeat) {
         if (this.state !== PlayerState.Stopped) {
             throw new Error('The player is not currently stopped.');
         }
@@ -120,15 +121,21 @@ export class MidiPlayer {
         if (typeof velocity !== 'undefined') {
             this._velocity = velocity;
         }
+        if (typeof repeat !== 'undefined') {
+            this._repeat = repeat;
+        }
         return this._promise();
     }
-    resume(velocity) {
+    resume(velocity, repeat) {
         if (this.state !== PlayerState.Paused) {
             throw new Error('The player is not currently paused.');
         }
         // Here, we set the public variable to adjust internal state.
         if (typeof velocity !== 'undefined') {
             this.velocity = velocity;
+        }
+        if (typeof repeat !== 'undefined') {
+            this._repeat = repeat;
         }
         return this._promise();
     }
@@ -157,11 +164,25 @@ export class MidiPlayer {
         return new Promise((resolve) => {
             const { stop: stopScheduler, reset: resetScheduler, now: nowScheduler } = this._startScheduler(({ end, start }) => {
                 if (this._state === null) {
-                    this._state = { offset: start, resolve, stopScheduler: null, resetScheduler: null, nowScheduler: null, paused: null };
+                    this._state = {
+                        next: null,
+                        nowScheduler: null,
+                        offset: start,
+                        paused: null,
+                        repeat: this._repeat,
+                        resetScheduler: null,
+                        resolve,
+                        stopScheduler: null,
+                    };
                 }
                 if (this._state.paused !== null) {
                     this._state.offset = start - this._state.paused;
                     this._state.paused = null;
+                    this._state.resolve = resolve;
+                }
+                if (this._state.next !== null) {
+                    this._state.offset = this._state.next;
+                    this._state.next = null;
                 }
                 this._schedule(start, end, this._state);
             });
@@ -180,8 +201,28 @@ export class MidiPlayer {
         events
             .filter(({ event }) => this._filterMidiMessage(event))
             .forEach(({ event, time }) => this._midiOutput.send(this._encodeMidiMessage(event), start + time / this._velocity));
-        if ((start - state.offset) * this._velocity >= this._latest) {
-            this._stop(state);
+        // Check if we're at the end of the file.
+        const wrapping = (end - state.offset) * this._velocity - this._latest;
+        if (state.repeat === 0) {
+            // If we're no longer looping, stop the player.
+            if (state.nowScheduler !== null && (state.nowScheduler() - state.offset) * this._velocity >= this._latest) {
+                this._stop(state);
+            }
+        }
+        else if (wrapping >= 0) {
+            // Decrement the loop counter.
+            if (state.repeat > 0) {
+                state.repeat -= 1;
+            }
+            // If we're still looping, schedule the starting events from the next cycle.
+            // Otherwise, wait until next cycle to stop the player.
+            if (state.repeat !== 0) {
+                const events2 = this._midiFileSlicer.slice(0, wrapping);
+                events2
+                    .filter(({ event }) => this._filterMidiMessage(event))
+                    .forEach(({ event, time }) => this._midiOutput.send(this._encodeMidiMessage(event), end + (time - wrapping) / this._velocity));
+                state.next = state.offset + this._latest / this._velocity;
+            }
         }
     }
     _stop(state) {

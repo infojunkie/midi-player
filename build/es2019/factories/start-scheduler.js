@@ -1,7 +1,7 @@
 const INTERVAL = 500;
 export const createStartScheduler = (clearInterval, performance, setInterval) => (next) => {
     const start = performance.now();
-    let nextTick = start + INTERVAL;
+    let nextTick = start;
     let end = nextTick + INTERVAL;
     const intervalId = setInterval(() => {
         if (performance.now() >= nextTick) {

@@ -6,6 +6,7 @@ export declare class MidiPlayer implements IMidiPlayer {
     private _latest;
     private _midiFileSlicer;
     private _midiOutput;
+    private _repeat;
     private _startScheduler;
     private _state;
     private _velocity;
@@ -16,8 +17,8 @@ export declare class MidiPlayer implements IMidiPlayer {
     get velocity(): number | undefined;
     set velocity(velocity: number);
     pause(): void;
-    play(velocity?: number): Promise<void>;
-    resume(velocity?: number): Promise<void>;
+    play(velocity?: number, repeat?: number): Promise<void>;
+    resume(velocity?: number, repeat?: number): Promise<void>;
     stop(): void;
     private _clear;
     private _pause;

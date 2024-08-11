@@ -9,9 +9,9 @@ export interface IMidiPlayer {
 
     pause(): void;
 
-    play(velocity?: number): Promise<void>;
+    play(velocity?: number, repeat?: number): Promise<void>;
 
-    resume(velocity?: number): Promise<void>;
+    resume(velocity?: number, repeat?: number): Promise<void>;
 
     stop(): void;
 }

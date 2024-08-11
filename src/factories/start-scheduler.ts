@@ -7,7 +7,7 @@ export const createStartScheduler =
     (next: (interval: IInterval) => void) => {
         const start = performance.now();
 
-        let nextTick = start + INTERVAL;
+        let nextTick = start;
         let end = nextTick + INTERVAL;
 
         const intervalId = setInterval(() => {

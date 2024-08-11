@@ -4,8 +4,8 @@ export interface IMidiPlayer {
     readonly state: PlayerState;
     velocity: number | undefined;
     pause(): void;
-    play(velocity?: number): Promise<void>;
-    resume(velocity?: number): Promise<void>;
+    play(velocity?: number, repeat?: number): Promise<void>;
+    resume(velocity?: number, repeat?: number): Promise<void>;
     stop(): void;
 }
 //# sourceMappingURL=midi-player.d.ts.map
