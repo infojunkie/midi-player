@@ -1,14 +1,15 @@
 import { encodeMidiMessage } from '../helpers/encode-midi-message';
 import { MidiPlayer } from '../midi-player';
-export const createMidiPlayerFactory = (createMidiFileSlicer, startScheduler) => {
+export const createMidiPlayerFactory = (createMidiFileSlicer, startIntervalScheduler, startTimeoutScheduler) => {
     return (options) => {
         const midiFileSlicer = createMidiFileSlicer(options.json);
         return new MidiPlayer({
-            filterMidiMessage: (event) => 'controlChange' in event || 'noteOff' in event || 'noteOn' in event || 'programChange' in event,
+            filterMidiMessage: (event) => 'channel' in event,
             ...options,
             encodeMidiMessage,
             midiFileSlicer,
-            startScheduler
+            startIntervalScheduler,
+            startTimeoutScheduler
         });
     };
 };

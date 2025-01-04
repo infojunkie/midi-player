@@ -1,7 +1,6 @@
-import { PlayerState } from '../types/player-state';
 export interface IMidiPlayer {
     position: number | undefined;
-    readonly state: PlayerState;
+    readonly state: 'paused' | 'playing' | 'stopped';
     velocity: number | undefined;
     pause(): void;
     play(velocity?: number, repeat?: number): Promise<void>;

@@ -1,8 +1,9 @@
 import { MidiFileSlicer } from 'midi-file-slicer';
-import { IMidiFile, IMidiSetTempoEvent, TMidiEvent } from 'midi-json-parser-worker';
-import { createStartScheduler } from './factories/start-scheduler';
-import { IMidiOutput, IMidiPlayer, IMidiPlayerOptions, IState } from './interfaces';
-import { PlayerState } from './types/player-state';
+import { IMidiFile, TMidiEvent } from 'midi-json-parser-worker';
+import { createStartIntervalScheduler } from './factories/start-interval-scheduler';
+import { createStartTimeoutScheduler } from './factories/start-timeout-scheduler';
+import { IMidiOutput, IMidiPlayer, IMidiPlayerOptions } from './interfaces';
+import { TState } from './types';
 
 const ALL_SOUND_OFF_EVENT_DATA = Array.from({ length: 16 }, (_, index) => new Uint8Array([176 + index, 120, 0]));
 
@@ -11,7 +12,7 @@ export class MidiPlayer implements IMidiPlayer {
 
     private _filterMidiMessage: (event: TMidiEvent) => boolean;
 
-    private _latest: number;
+    private _json: IMidiFile;
 
     private _midiFileSlicer: MidiFileSlicer;
 
@@ -19,42 +20,35 @@ export class MidiPlayer implements IMidiPlayer {
 
     private _repeat: number;
 
-    private _startScheduler: ReturnType<typeof createStartScheduler>;
+    private _startIntervalScheduler: ReturnType<typeof createStartIntervalScheduler>;
 
-    private _state: null | IState;
+    private _startTimeoutScheduler: ReturnType<typeof createStartTimeoutScheduler>;
+
+    private _state: null | TState;
 
     private _velocity: number;
 
-    constructor({ encodeMidiMessage, filterMidiMessage, json, midiFileSlicer, midiOutput, startScheduler }: IMidiPlayerOptions) {
+    constructor({
+        encodeMidiMessage,
+        filterMidiMessage,
+        json,
+        midiFileSlicer,
+        midiOutput,
+        startIntervalScheduler,
+        startTimeoutScheduler
+    }: IMidiPlayerOptions) {
         this._encodeMidiMessage = encodeMidiMessage;
         this._filterMidiMessage = filterMidiMessage;
+        this._json = json;
         this._midiFileSlicer = midiFileSlicer;
         this._midiOutput = midiOutput;
-        this._startScheduler = startScheduler;
+        this._startIntervalScheduler = startIntervalScheduler;
+        this._startTimeoutScheduler = startTimeoutScheduler;
         this._state = null;
         this._velocity = 1;
         this._repeat = 1;
-        this._latest = MidiPlayer._getMaxTimestamp(json);
     }
-
-    public get position(): number | undefined {
-        // STOPPED: Position is undefined.
-        if (this.state === PlayerState.Stopped) {
-            return undefined;
-        }
-
-        const state = this._state as IState;
-        // PAUSED: Position of pause offset in real-time space.
-        if (state.paused !== null) {
-            return state.paused * this._velocity;
-        }
-
-        // PLAYING: Currrent offset in real-time space.
-        const nowScheduler = state.nowScheduler as (() => number);
-
-        return (nowScheduler() - state.offset) * this._velocity;
-    }
-
+/*
     public set position(position: number) {
         // STOPPED: Exception.
         if (this.state === PlayerState.Stopped) {
@@ -84,32 +78,6 @@ export class MidiPlayer implements IMidiPlayer {
 
             state.resetScheduler?.();
         }
-    }
-
-    public get state(): PlayerState {
-        if (this._state === null) {
-            return PlayerState.Stopped;
-        }
-
-        if (this._state.paused !== null) {
-            return PlayerState.Paused;
-        }
-
-        return PlayerState.Playing;
-    }
-
-    public get velocity(): number | undefined {
-        // STOPPED: Velocity is undefined.
-        if (this.state === PlayerState.Stopped) {
-            return undefined;
-        }
-
-        // PAUSED: Velocity is 0.
-        if (this.state === PlayerState.Paused) {
-            return 0;
-        }
-
-        return this._velocity;
     }
 
     public set velocity(velocity: number) {
@@ -151,76 +119,6 @@ export class MidiPlayer implements IMidiPlayer {
                 this._pause(this._state as IState);
             }
         }
-    }
-
-    public pause(): void {
-        if (this.state !== PlayerState.Playing) {
-            throw new Error('The player is not currently playing.');
-        }
-
-        this._clear();
-
-        this._pause(this._state as IState);
-    }
-
-    public play(velocity?: number, repeat?: number): Promise<void> {
-        if (this.state !== PlayerState.Stopped) {
-            throw new Error('The player is not currently stopped.');
-        }
-
-        // Here, we set the internal variable because we're already stopped and no further state adjustment is needed.
-        if (typeof velocity !== 'undefined') {
-            this._velocity = velocity;
-        }
-        if (typeof repeat !== 'undefined') {
-            this._repeat = repeat;
-        }
-
-        return this._promise();
-    }
-
-    public resume(velocity?: number, repeat?: number): Promise<void> {
-        if (this.state !== PlayerState.Paused) {
-            throw new Error('The player is not currently paused.');
-        }
-
-        // Here, we set the public variable to adjust internal state.
-        if (typeof velocity !== 'undefined') {
-            this.velocity = velocity;
-        }
-        if (typeof repeat !== 'undefined') {
-            this._repeat = repeat;
-        }
-
-        return this._promise();
-    }
-
-    public stop(): void {
-        if (this.state === PlayerState.Stopped) {
-            throw new Error('The player is already stopped.');
-        }
-
-        this._clear();
-
-        this._stop(this._state as IState);
-    }
-
-    private _clear(): void {
-        // Bug #1: Chrome does not yet implement the clear() method.
-        this._midiOutput.clear?.();
-        ALL_SOUND_OFF_EVENT_DATA.forEach((data) => this._midiOutput.send(data));
-    }
-
-    /* tslint:disable-next-line prefer-function-over-method */
-    private _pause(state: IState): void {
-        const { resolve, stopScheduler } = state;
-
-        stopScheduler?.();
-
-        const nowScheduler = state.nowScheduler as (() => number);
-        state.paused = nowScheduler() - state.offset;
-
-        resolve();
     }
 
     private _promise(): Promise<void> {
@@ -296,58 +194,162 @@ export class MidiPlayer implements IMidiPlayer {
             }
         }
     }
+*/
+    public get position(): number {
+        return this._state === null
+            ? 0
+            : this._state.peekScheduler === null
+              ? this._state.offset
+              : this._state.peekScheduler() - this._state.offset;
+    }
 
-    private _stop(state: IState): void {
-        const { resolve, stopScheduler } = state;
+    public get state(): 'paused' | 'playing' | 'stopped' {
+        return this._state === null ? 'stopped' : this._state.peekScheduler === null ? 'paused' : 'playing';
+    }
 
-        stopScheduler?.();
+    public get velocity(): number | undefined {
+        return this._velocity;
+    }
 
-        this._state = null;
+    public pause(): void {
+        if (this._state === null || this._state.peekScheduler === null) {
+            throw new Error('The player is not playing.');
+        }
 
+        this._clear();
+
+        const { endOfTrackEventTimes, resolve, peekScheduler, stopScheduler } = this._state;
+        const positionWithOffset = peekScheduler();
+
+        this._state = {
+            ...this._state,
+            endOfTrackEventTimes: endOfTrackEventTimes.filter((time) => time < positionWithOffset),
+            offset: positionWithOffset - this._state.offset,
+            peekScheduler: null,
+            stopScheduler: null
+        };
+
+        stopScheduler();
         resolve();
     }
 
-    private static _getMaxTimestamp(json: IMidiFile): number {
-        // Collect all tempo changes.
-        const tempoChanges: { tempo: number, time: number }[] = [];
-        json.tracks.forEach(events => {
-            let trackTime = 0;
-            events.forEach((event) => {
-                trackTime += event.delta;
-                if ('setTempo' in event) {
-                    tempoChanges.push({ time: trackTime, tempo: (<IMidiSetTempoEvent>event).setTempo.microsecondsPerQuarter });
-                }
-            });
-        });
-
-        // Sort tempo changes by time.
-        tempoChanges.sort((a, b) => a.time - b.time);
-
-        // Function to get the current tempo at a given time.
-        function getTempoAtTime(time: number): number {
-            for (let i = tempoChanges.length - 1; i >= 0; i -= 1) {
-                if (time >= tempoChanges[i].time) {
-                    return tempoChanges[i].tempo;
-                }
-            }
-
-            return 500000; // Default tempo if no changes before this time
+    public play(velocity?: number, repeat?: number): Promise<void> {
+        if (this._state !== null) {
+            throw new Error('The player is not stopped.');
         }
 
-        // Calculate the maximum timestamp considering all tracks and tempo changes.
-        let maxTimestamp = 0;
-        json.tracks.forEach(events => {
-            let trackTime = 0;
-            events.forEach(event => {
-                trackTime += event.delta;
-                const currentTempo = getTempoAtTime(trackTime);
-                const currentTime = trackTime * (currentTempo / 1000) / json.division;
-                if (currentTime > maxTimestamp) {
-                    maxTimestamp = currentTime;
+        // Here, we set the internal variable because we're already stopped and no further state adjustment is needed.
+        if (typeof velocity !== 'undefined') {
+            this._velocity = velocity;
+        }
+        if (typeof repeat !== 'undefined') {
+            this._repeat = repeat;
+        }
+
+        return this._schedule([], 0);
+    }
+
+    public resume(velocity?: number, repeat?: number): Promise<void> {
+        if (this._state === null || this._state.peekScheduler !== null) {
+            throw new Error('The player is not paused.');
+        }
+
+        const { endOfTrackEventTimes, offset } = this._state;
+
+        this._state = null;
+
+        // FIXME Here, we set the public variable to adjust internal state.
+        if (typeof velocity !== 'undefined') {
+            this._velocity = velocity;
+        }
+        if (typeof repeat !== 'undefined') {
+            this._repeat = repeat;
+        }
+
+        return this._schedule(endOfTrackEventTimes, offset);
+    }
+
+    public stop(): void {
+        if (this._state === null) {
+            throw new Error('The player is already stopped.');
+        }
+
+        if (this._state.stopScheduler === null) {
+            this._state = null;
+        } else {
+            this._clear();
+            this._stop(this._state);
+        }
+    }
+
+    private _clear(): void {
+        // Bug #1: Chrome does not yet implement the clear() method.
+        this._midiOutput.clear?.();
+        ALL_SOUND_OFF_EVENT_DATA.forEach((data) => this._midiOutput.send(data));
+    }
+
+    private _schedule(endOfTrackEventTimes: number[], offset: number): Promise<void> {
+        return new Promise((resolve) => {
+            const { peek: peekScheduler, stop: stopScheduler } = this._startIntervalScheduler(({ end, start }) => {
+                if (this._state === null) {
+                    this._state = { endOfTrackEventTimes, offset: start - offset, resolve, peekScheduler: null, stopScheduler: null };
+                }
+
+                const events = this._midiFileSlicer.slice(
+                    (start - this._state.offset) * this._velocity,
+                    (end - this._state.offset) * this._velocity
+                );
+
+                events
+                    .filter(({ event }) => this._filterMidiMessage(event))
+                    .forEach(({ event, time }) => this._midiOutput.send(this._encodeMidiMessage(event), start + time / this._velocity));
+
+                const newEndOfTrackEventTimes = events
+                    .filter(({ event }) => MidiPlayer._isEndOfTrack(event))
+                    .map(({ time }) => start + time / this._velocity);
+
+                this._state.endOfTrackEventTimes.push(...newEndOfTrackEventTimes);
+
+                if (this._state.endOfTrackEventTimes.length === this._json.tracks.length) {
+                    const timeout = Math.max(...newEndOfTrackEventTimes) - (this._state.peekScheduler?.() ?? start);
+
+                    if (timeout > 0) {
+                        this._state.stopScheduler?.();
+
+                        this._state = {
+                            ...this._state,
+                            stopScheduler: this._startTimeoutScheduler(() => {
+                                this._state = null;
+
+                                resolve();
+                            }, timeout)
+                        };
+                    } else {
+                        this._stop(this._state);
+                    }
                 }
             });
-        });
 
-        return maxTimestamp;
+            if (this._state?.stopScheduler === null) {
+                this._state = { ...this._state, peekScheduler, stopScheduler };
+            } else {
+                stopScheduler();
+
+                if (this._state !== null) {
+                    this._state = { ...this._state, peekScheduler };
+                }
+            }
+        });
+    }
+
+    private _stop({ resolve, stopScheduler }: TState): void {
+        this._state = null;
+
+        stopScheduler?.();
+        resolve();
+    }
+
+    private static _isEndOfTrack(event: TMidiEvent): boolean {
+        return 'endOfTrack' in event;
     }
 }

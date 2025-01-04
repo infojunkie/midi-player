@@ -1,0 +1,2 @@
+export declare const createStartTimeoutScheduler: (clearTimeout: Window["clearTimeout"], setTimeout: Window["setTimeout"]) => (handler: () => void, timeout: number) => () => void;
+//# sourceMappingURL=start-timeout-scheduler.d.ts.map

@@ -1,4 +1,5 @@
 import { TMidiFileSlicerFactory, TMidiPlayerFactory } from '.';
-import { createStartScheduler } from '../factories/start-scheduler';
-export type TMidiPlayerFactoryFactory = (createMidiFileSlicer: TMidiFileSlicerFactory, startScheduler: ReturnType<typeof createStartScheduler>) => TMidiPlayerFactory;
+import { createStartIntervalScheduler } from '../factories/start-interval-scheduler';
+import { createStartTimeoutScheduler } from '../factories/start-timeout-scheduler';
+export type TMidiPlayerFactoryFactory = (createMidiFileSlicer: TMidiFileSlicerFactory, startIntervalScheduler: ReturnType<typeof createStartIntervalScheduler>, startTimeoutScheduler: ReturnType<typeof createStartTimeoutScheduler>) => TMidiPlayerFactory;
 //# sourceMappingURL=midi-player-factory-factory.d.ts.map
